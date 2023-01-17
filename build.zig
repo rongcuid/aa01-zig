@@ -15,6 +15,7 @@ pub fn build(b: *std.build.Builder) void {
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.linkSystemLibrary("SDL2");
+    exe.linkSystemLibrary("vulkan");
     exe.linkSystemLibrary("c");
     exe.install();
 
