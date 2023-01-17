@@ -21,10 +21,6 @@ pub fn main() !void {
             }
         }
 
-        _ = c.SDL_RenderClear(r.renderer);
-        _ = c.SDL_RenderCopy(r.renderer, r.texture, null, null);
-        c.SDL_RenderPresent(r.renderer);
-
         c.SDL_Delay(17);
     }
 }
