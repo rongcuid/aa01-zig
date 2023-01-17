@@ -1,16 +1,13 @@
 const c = @import("c.zig");
-const render = @import("renderer.zig");
+const renderer = @import("renderer.zig");
 const assert = @import("std").debug.assert;
 
 pub fn main() !void {
-    if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
-        c.SDL_Log("Unable to initialize SDL: %s", c.SDL_GetError());
-        return error.SDLInitializationFailed;
-    }
-    defer c.SDL_Quit();
+    try renderer.initializeSDL();
+    defer renderer.quitSDL();
 
-    var r = try render.Renderer.init();
-    defer r.drop();
+    var r = try renderer.Renderer.init();
+    defer r.deinit();
 
     var quit = false;
     while (!quit) {

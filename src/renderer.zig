@@ -1,6 +1,17 @@
 const c = @import("c.zig");
 const assert = @import("std").debug.assert;
 
+pub fn initializeSDL() !void {
+    if (c.SDL_Init(c.SDL_INIT_VIDEO) != 0) {
+        c.SDL_Log("Unable to initialize SDL: %s", c.SDL_GetError());
+        return error.SDLInitializationFailed;
+    }
+}
+
+pub fn quitSDL() void {
+    c.SDL_Quit();
+}
+
 pub const Renderer = struct {
     window: *c.SDL_Window,
     renderer: *c.SDL_Renderer,
@@ -38,12 +49,17 @@ pub const Renderer = struct {
             .texture = zig_texture,
         };
     }
-    pub fn drop(self: *Renderer) void {
+    pub fn deinit(self: * Renderer) void {
         c.SDL_DestroyTexture(self.texture);
+        self.texture = undefined;
         c.SDL_FreeSurface(self.surface);
+        self.surface = undefined;
         assert(c.SDL_RWclose(self.rw) == 0);
+        self.rw = undefined;
         c.SDL_DestroyRenderer(self.renderer);
+        self.renderer = undefined;
         c.SDL_DestroyWindow(self.window);
+        self.window = undefined;
     }
 };
 
