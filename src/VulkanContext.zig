@@ -34,11 +34,8 @@ pub fn init(window: *c.SDL_Window) !@This() {
 }
 
 fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
-    var buf: [256]u8 = undefined;
-    var fba = std.heap.FixedBufferAllocator.init(&buf);
     // This is the actual required extensions
-    var actual_exts = try std.ArrayList(?[*:0]const u8).initCapacity(fba.allocator(), 16);
-    defer actual_exts.deinit();
+    var actual_exts = try std.BoundedArray(?[*:0]const u8, 16).init(0);
     actual_exts.appendSliceAssumeCapacity(exts);
     //
     const appInfo = zeroInit(c.VkApplicationInfo, .{
@@ -54,8 +51,8 @@ fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
         .sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = null,
         .pApplicationInfo = &appInfo,
-        .enabledExtensionCount = @intCast(c_uint, actual_exts.items.len),
-        .ppEnabledExtensionNames = actual_exts.items.ptr,
+        .enabledExtensionCount = @intCast(c_uint, actual_exts.len),
+        .ppEnabledExtensionNames = &actual_exts.buffer,
         .flags = 0,
     });
     var instance: c.VkInstance = undefined;
@@ -65,8 +62,8 @@ fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
     } else if (result == c.VK_ERROR_INCOMPATIBLE_DRIVER) {
         // Try again with portability
         try actual_exts.append(c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-        instanceCI.enabledExtensionCount = @intCast(c_uint, actual_exts.items.len);
-        instanceCI.ppEnabledExtensionNames = actual_exts.items.ptr;
+        instanceCI.enabledExtensionCount = @intCast(c_uint, actual_exts.len);
+        instanceCI.ppEnabledExtensionNames = &actual_exts.buffer;
         instanceCI.flags |= c.VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
         vk.check(c.vkCreateInstance(&instanceCI, null, &instance), "Failed to create VkInstance with portability subset");
     } else {
