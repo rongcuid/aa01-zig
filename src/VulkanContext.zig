@@ -1,8 +1,11 @@
 const c = @import("c.zig");
 const std = @import("std");
 const vk = @import("vk.zig");
-const zeroInit = @import("std").mem.zeroInit;
-const assert = @import("std").debug.assert;
+
+const print = std.debug.print;
+const zeroInit = std.mem.zeroInit;
+const assert = std.debug.assert;
+const Allocator = std.mem.Allocator;
 
 /// Vulkan instance
 instance: c.VkInstance,
@@ -11,13 +14,18 @@ instance: c.VkInstance,
 // /// Present queue. Currently, only this one queue
 // presentQueue: c.VkQueue,x
 pub fn init(window: *c.SDL_Window) !@This() {
+    var buf: [1024]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buf);
     var n_exts: c_uint = undefined;
     var extensions: [16]?[*:0]const u8 = undefined;
     if (c.SDL_Vulkan_GetInstanceExtensions(window, &n_exts, &extensions) != c.SDL_TRUE) {
         @panic("Failed to get required extensions");
     }
-    // Try once
     const instance = try createVkInstance(extensions[0..n_exts]);
+    const physDevices = try enumeratePhysicalDevices(instance, fba.allocator());
+    for (physDevices.items) |p| {
+        printPhysicalDeviceInfo(p);
+    }
 
     return @This(){
         .instance = instance,
@@ -65,4 +73,35 @@ fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
         vk.check(result, "Failed to create VkInstance");
     }
     return instance;
+}
+
+fn enumeratePhysicalDevices(instance: c.VkInstance, alloc: Allocator) !std.ArrayList(c.VkPhysicalDevice) {
+    var count: u32 = undefined;
+    vk.check(c.vkEnumeratePhysicalDevices(instance, &count, null), "Failed to enumerate number of physical devices");
+    var phys = std.ArrayList(c.VkPhysicalDevice).init(alloc);
+    try phys.appendNTimes(undefined, count);
+    vk.check(c.vkEnumeratePhysicalDevices(instance, &count, phys.items.ptr), "Failed to enumerate physical devices");
+    return phys;
+}
+
+fn getPhysicalDeviceProperties(phys: c.VkPhysicalDevice) c.VkPhysicalDeviceProperties {
+    var props: c.VkPhysicalDeviceProperties = undefined;
+    c.vkGetPhysicalDeviceProperties(phys, &props);
+    return props;
+}
+
+fn physicalDeviceTypeName(props: *const c.VkPhysicalDeviceProperties) []const u8 {
+    return switch (props.deviceType) {
+        c.VK_PHYSICAL_DEVICE_TYPE_OTHER => "Other",
+        c.VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU => "Integrated",
+        c.VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU => "Discrete",
+        c.VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU => "Virtual",
+        c.VK_PHYSICAL_DEVICE_TYPE_CPU => "CPU",
+        else => unreachable,
+    };
+}
+
+fn printPhysicalDeviceInfo(phys: c.VkPhysicalDevice) void {
+    const props = getPhysicalDeviceProperties(phys);
+    print("Device: [{s}] ({s})\n", .{props.deviceName, physicalDeviceTypeName(&props)});
 }
