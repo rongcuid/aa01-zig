@@ -12,10 +12,10 @@ const Allocator = std.mem.Allocator;
 instance: c.VkInstance,
 /// Debug messenger object
 debugMessenger: c.VkDebugUtilsMessengerEXT,
-// /// Logical device
-// device: c.VkDevice,
-// /// Present queue. Currently, only this one queue
-// presentQueue: c.VkQueue,x
+/// Logical device
+device: c.VkDevice,
+/// Graphics queue. Currently, assume that graphics queue can present
+graphicsQueue: c.VkQueue,
 
 ////// Methods
 
@@ -38,16 +38,22 @@ pub fn init(window: *c.SDL_Window) !@This() {
     const physDevice = selectPhysicalDevice(physDevices.items);
     print("Selected physical device: 0x{x}\n", .{@ptrToInt(physDevice)});
     // Create logical device
+    const gqIndex = try getGraphicsQueueFamilyIndex(physDevice);
+    const device = try createDevice(physDevice, gqIndex, inst_debug[2]);
+    var queue: c.VkQueue = undefined;
+    c.vkGetDeviceQueue(device, gqIndex, 0, &queue);
     return @This(){
         .instance = inst_debug[0],
         .debugMessenger = inst_debug[1],
-        // .device = null,
+        .device = device,
+        .graphicsQueue = queue,
     };
 }
 
 ////// Instance
 
-fn createVkInstance(exts: []?[*:0]const u8) !struct { c.VkInstance, c.VkDebugUtilsMessengerEXT } {
+/// TODO: refactor return types
+fn createVkInstance(exts: []?[*:0]const u8) !struct { c.VkInstance, c.VkDebugUtilsMessengerEXT, bool } {
     // This is the actual required extensions
     var actual_exts = try std.BoundedArray(?[*:0]const u8, 16).init(0);
     try actual_exts.appendSlice(exts);
@@ -86,8 +92,10 @@ fn createVkInstance(exts: []?[*:0]const u8) !struct { c.VkInstance, c.VkDebugUti
     });
     var instance: c.VkInstance = undefined;
     const result = c.vkCreateInstance(&instanceCI, null, &instance);
+    var portability = false;
     if (result == c.VK_SUCCESS) {} else if (result == c.VK_ERROR_INCOMPATIBLE_DRIVER) {
         std.log.info("Failed to create Vulkan instance, trying again with portability subset. This is normal on Mac OS", .{});
+        portability = true;
         // Try again with portability
         try actual_exts.append(c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
         instanceCI.enabledExtensionCount = @intCast(c_uint, actual_exts.len);
@@ -105,10 +113,12 @@ fn createVkInstance(exts: []?[*:0]const u8) !struct { c.VkInstance, c.VkDebugUti
     if (vkCreateDebugUtilsMessengerEXT) |f| {
         vk.check(f(instance, &debugCI, null, &debugMessenger), "Failed to create VkDebugUtilsMessengerEXT");
     }
-    return .{ instance, debugMessenger };
+    return .{ instance, debugMessenger, portability };
 }
 
 pub fn deinit(self: *@This()) void {
+    c.vkDestroyDevice(self.device, null);
+    self.device = undefined;
     const vkDestroyDebugUtilsMessengerEXT = @ptrCast(
         c.PFN_vkDestroyDebugUtilsMessengerEXT,
         c.vkGetInstanceProcAddr(self.instance, "vkDestroyDebugUtilsMessengerEXT"),
@@ -197,4 +207,53 @@ fn selectPhysicalDevice(phys: []c.VkPhysicalDevice) c.VkPhysicalDevice {
         @panic("No physical device");
     }
     return phys.ptr[0];
+}
+
+////// Queue family
+
+fn getGraphicsQueueFamilyIndex(phys: c.VkPhysicalDevice) !u32 {
+    var count: u32 = undefined;
+    c.vkGetPhysicalDeviceQueueFamilyProperties(phys, &count, null);
+    var props = try std.BoundedArray(c.VkQueueFamilyProperties, 16).init(count);
+    c.vkGetPhysicalDeviceQueueFamilyProperties(phys, &count, &props.buffer);
+    for (props.buffer) |p, i| {
+        if (p.queueFlags & c.VK_QUEUE_GRAPHICS_BIT != 0) {
+            return @intCast(u32, i);
+        }
+    }
+    return error.NoGraphicsQueue;
+}
+
+////// Logical device
+fn createDevice(
+    phys: c.VkPhysicalDevice,
+    graphicsQueueFamilyIndex: u32,
+    portability: bool,
+) !c.VkDevice {
+    const priority: f32 = 1.0;
+    const queueCI = zeroInit(c.VkDeviceQueueCreateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .queueFamilyIndex = graphicsQueueFamilyIndex,
+        .queueCount = 1,
+        .pQueuePriorities = &priority,
+    });
+    var features = zeroInit(c.VkPhysicalDeviceFeatures, .{});
+    var extensions = try std.BoundedArray([*:0]const u8, 16).init(0);
+    if (portability) {
+        try extensions.append("VK_KHR_portability_subset");
+    }
+    const layers = [1][*:0]const u8{"VK_LAYER_KHRONOS_validation"};
+    const deviceCI = zeroInit(c.VkDeviceCreateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .pQueueCreateInfos = &queueCI,
+        .queueCreateInfoCount = 1,
+        .pEnabledFeatures = &features,
+        .enabledExtensionCount = @intCast(u32, extensions.len),
+        .ppEnabledExtensionNames = &extensions.buffer,
+        .enabledLayerCount = layers.len,
+        .ppEnabledLayerNames = &layers,
+    });
+    var device: c.VkDevice = undefined;
+    vk.check(c.vkCreateDevice(phys, &deviceCI, null, &device), "Failed to create VkDevice");
+    return device;
 }
