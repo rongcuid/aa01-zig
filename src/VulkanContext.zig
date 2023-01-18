@@ -21,26 +21,48 @@ pub fn init(window: *c.SDL_Window) !@This() {
     if (c.SDL_Vulkan_GetInstanceExtensions(window, &n_exts, &extensions) != c.SDL_TRUE) {
         @panic("Failed to get required extensions");
     }
+    // Create instance
     const instance = try createVkInstance(extensions[0..n_exts]);
+    // Enumerate and selct physical devices
     const physDevices = try enumeratePhysicalDevices(instance, fba.allocator());
+    defer physDevices.deinit();
     for (physDevices.items) |p| {
         printPhysicalDeviceInfo(p);
     }
-
+    const physDevice = selectPhysicalDevice(physDevices.items);
+    print("Selected physical device: 0x{x}\n", .{@ptrToInt(physDevice)});
+    // Create logical device
     return @This(){
         .instance = instance,
         // .device = null,
     };
 }
 
+////// Instance
+
 fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
     // This is the actual required extensions
     var actual_exts = try std.BoundedArray(?[*:0]const u8, 16).init(0);
-    actual_exts.appendSliceAssumeCapacity(exts);
-    //
+    try actual_exts.appendSlice(exts);
+    try actual_exts.append(c.VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    // TODO: check if validation layer is available
+    var layers = try std.BoundedArray([*:0]const u8, 16).init(0);
+    try layers.append("VK_LAYER_KHRONOS_validation");
+    // Debug callback
+    // const debugCI = zeroInit(c.VkDebugUtilsMessengerCreateInfoEXT, .{
+    //     .sType = c.VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+    //     .messageSeverity = c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+    //         c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+    //         c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+    //     .messageType = c.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+    //         c.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | c.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+    //     .pfnUserCallback = &debugCallback,
+    // });
+
+    // Create instance
     const appInfo = zeroInit(c.VkApplicationInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        .pNext = null,
+        // .pNext = &debugCI,
         .pApplicationName = "Arcland Air 01",
         .applicationVersion = c.VK_MAKE_VERSION(0, 1, 0),
         .pEngineName = "Arcland Engine",
@@ -49,10 +71,12 @@ fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
     });
     var instanceCI = zeroInit(c.VkInstanceCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .pNext = null,
+        // .pNext = null,
         .pApplicationInfo = &appInfo,
         .enabledExtensionCount = @intCast(c_uint, actual_exts.len),
         .ppEnabledExtensionNames = &actual_exts.buffer,
+        .enabledLayerCount = @intCast(c_uint, layers.len),
+        .ppEnabledLayerNames = &layers.buffer,
         .flags = 0,
     });
     var instance: c.VkInstance = undefined;
@@ -71,6 +95,60 @@ fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
     }
     return instance;
 }
+
+export fn debugCallback(
+    severity: c.VkDebugUtilsMessageSeverityFlagBitsEXT,
+    msgType: c.VkDebugUtilsMessageTypeFlagsEXT,
+    callbackData: *const c.VkDebugUtilsMessengerCallbackDataEXT,
+    userData: ?*anyopaque,
+) u32 {
+    _ = userData;
+    var msg = std.ArrayList(u8).init(std.heap.c_allocator);
+    defer msg.deinit();
+    if (msgType & c.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT != 0) {
+        msg.writer().print("GENERAL -- ", .{}) catch @panic("Debug messenger out of memory");
+    } else if (msgType & c.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT != 0) {
+        msg.writer().print("VALIDATION -- ", .{}) catch @panic("Debug messenger out of memory");
+    } else if (msgType & c.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT != 0) {
+        msg.writer().print("PERFORMANCE -- ", .{}) catch @panic("Debug messenger out of memory");
+    } else if (msgType & c.VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT != 0) {
+        msg.writer().print("ADDRESS BINDING -- ", .{})  catch @panic("Debug messenger out of memory");
+    }
+    // ID
+    msg.writer().print("[{s}]", .{callbackData.pMessageIdName}) catch @panic("Debug messenger out of memory");
+    // Queues
+    var i: usize = 0;
+    while (i < callbackData.queueLabelCount) {
+         msg.writer().print(" (Queue {s})", .{callbackData.pQueueLabels[i].pLabelName}) catch @panic("Debug messenger out of memory");
+        i += 1;
+    }
+    // Commands
+    i = 0;
+    while (i < callbackData.cmdBufLabelCount) {
+        msg.writer().print(" (CommandBuffer {s})", .{callbackData.pCmdBufLabels[i].pLabelName}) catch @panic("Debug messenger out of memory");
+        i += 1;
+    }
+    // Objects
+    i = 0;
+    while (i < callbackData.objectCount) {
+        msg.writer().print(" (Object {s})", .{callbackData.pObjects[i].pObjectName}) catch @panic("Debug messenger out of memory");
+        i += 1;
+    }
+    // Message
+    msg.writer().print("{s}", .{callbackData.pMessage}) catch @panic("Debug messenger out of memory");
+    if (severity & c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT != 0) {
+        std.log.err("{s}", .{msg.items});
+    } else if (severity & c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT != 0) {
+        std.log.warn("{s}", .{msg.items});
+    } else if (severity & c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT != 0) {
+        std.log.info("{s}", .{msg.items});
+    } else if (severity & c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT != 0) {
+        std.log.debug("{s}", .{msg.items});
+    }
+    return c.VK_FALSE;
+}
+
+////// Physical devices
 
 fn enumeratePhysicalDevices(instance: c.VkInstance, alloc: Allocator) !std.ArrayList(c.VkPhysicalDevice) {
     var count: u32 = undefined;
@@ -100,5 +178,13 @@ fn physicalDeviceTypeName(props: *const c.VkPhysicalDeviceProperties) []const u8
 
 fn printPhysicalDeviceInfo(phys: c.VkPhysicalDevice) void {
     const props = getPhysicalDeviceProperties(phys);
-    print("Device: [{s}] ({s})\n", .{props.deviceName, physicalDeviceTypeName(&props)});
+    print("Device: [{s}] ({s})\n", .{ props.deviceName, physicalDeviceTypeName(&props) });
+}
+
+/// Currently, just pick the first device
+fn selectPhysicalDevice(phys: []c.VkPhysicalDevice) c.VkPhysicalDevice {
+    if (phys.len == 0) {
+        @panic("No physical device");
+    }
+    return phys.ptr[0];
 }
