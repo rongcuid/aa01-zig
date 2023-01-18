@@ -12,8 +12,10 @@ const Allocator = std.mem.Allocator;
 instance: c.VkInstance,
 /// Debug messenger object
 debugMessenger: c.VkDebugUtilsMessengerEXT,
+physicalDevice: c.VkPhysicalDevice,
 /// Logical device
 device: c.VkDevice,
+graphicsQueueFamilyIndex: u32,
 /// Graphics queue. Currently, assume that graphics queue can present
 graphicsQueue: c.VkQueue,
 
@@ -45,7 +47,9 @@ pub fn init(window: *c.SDL_Window) !@This() {
     return @This(){
         .instance = inst_debug[0],
         .debugMessenger = inst_debug[1],
+        .physicalDevice = physDevice,
         .device = device,
+        .graphicsQueueFamilyIndex = gqIndex,
         .graphicsQueue = queue,
     };
 }
@@ -239,6 +243,7 @@ fn createDevice(
     });
     var features = zeroInit(c.VkPhysicalDeviceFeatures, .{});
     var extensions = try std.BoundedArray([*:0]const u8, 16).init(0);
+    try extensions.append(c.VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     if (portability) {
         try extensions.append("VK_KHR_portability_subset");
     }
