@@ -49,20 +49,19 @@ fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
     var layers = try std.BoundedArray([*:0]const u8, 16).init(0);
     try layers.append("VK_LAYER_KHRONOS_validation");
     // Debug callback
-    // const debugCI = zeroInit(c.VkDebugUtilsMessengerCreateInfoEXT, .{
-    //     .sType = c.VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-    //     .messageSeverity = c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-    //         c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-    //         c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-    //     .messageType = c.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-    //         c.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | c.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-    //     .pfnUserCallback = &debugCallback,
-    // });
+    const debugCI = zeroInit(c.VkDebugUtilsMessengerCreateInfoEXT, .{
+        .sType = c.VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+        .messageSeverity = c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+            c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+            c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+        .messageType = c.VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+            c.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | c.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+        .pfnUserCallback = &debugCallback,
+    });
 
     // Create instance
     const appInfo = zeroInit(c.VkApplicationInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_APPLICATION_INFO,
-        // .pNext = &debugCI,
         .pApplicationName = "Arcland Air 01",
         .applicationVersion = c.VK_MAKE_VERSION(0, 1, 0),
         .pEngineName = "Arcland Engine",
@@ -71,7 +70,7 @@ fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
     });
     var instanceCI = zeroInit(c.VkInstanceCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        // .pNext = null,
+        .pNext = &debugCI,
         .pApplicationInfo = &appInfo,
         .enabledExtensionCount = @intCast(c_uint, actual_exts.len),
         .ppEnabledExtensionNames = &actual_exts.buffer,
@@ -99,7 +98,7 @@ fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
 export fn debugCallback(
     severity: c.VkDebugUtilsMessageSeverityFlagBitsEXT,
     msgType: c.VkDebugUtilsMessageTypeFlagsEXT,
-    callbackData: *const c.VkDebugUtilsMessengerCallbackDataEXT,
+    callbackData: ?*const c.VkDebugUtilsMessengerCallbackDataEXT,
     userData: ?*anyopaque,
 ) u32 {
     _ = userData;
@@ -114,28 +113,11 @@ export fn debugCallback(
     } else if (msgType & c.VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT != 0) {
         msg.writer().print("ADDRESS BINDING -- ", .{})  catch @panic("Debug messenger out of memory");
     }
+    const dat = callbackData orelse return c.VK_FALSE;
     // ID
-    msg.writer().print("[{s}]", .{callbackData.pMessageIdName}) catch @panic("Debug messenger out of memory");
-    // Queues
-    var i: usize = 0;
-    while (i < callbackData.queueLabelCount) {
-         msg.writer().print(" (Queue {s})", .{callbackData.pQueueLabels[i].pLabelName}) catch @panic("Debug messenger out of memory");
-        i += 1;
-    }
-    // Commands
-    i = 0;
-    while (i < callbackData.cmdBufLabelCount) {
-        msg.writer().print(" (CommandBuffer {s})", .{callbackData.pCmdBufLabels[i].pLabelName}) catch @panic("Debug messenger out of memory");
-        i += 1;
-    }
-    // Objects
-    i = 0;
-    while (i < callbackData.objectCount) {
-        msg.writer().print(" (Object {s})", .{callbackData.pObjects[i].pObjectName}) catch @panic("Debug messenger out of memory");
-        i += 1;
-    }
+    msg.writer().print("[{s}]", .{dat.pMessageIdName}) catch @panic("Debug messenger out of memory");
     // Message
-    msg.writer().print("{s}", .{callbackData.pMessage}) catch @panic("Debug messenger out of memory");
+    msg.writer().print(" {s}", .{dat.pMessage}) catch @panic("Debug messenger out of memory");
     if (severity & c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT != 0) {
         std.log.err("{s}", .{msg.items});
     } else if (severity & c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT != 0) {
