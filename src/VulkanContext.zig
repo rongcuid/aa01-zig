@@ -83,6 +83,7 @@ fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
     if (result == c.VK_SUCCESS) {
         return instance;
     } else if (result == c.VK_ERROR_INCOMPATIBLE_DRIVER) {
+        std.log.info("Failed to create Vulkan instance, trying again with portability subset. This is normal on Mac OS", .{});
         // Try again with portability
         try actual_exts.append(c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
         instanceCI.enabledExtensionCount = @intCast(c_uint, actual_exts.len);
