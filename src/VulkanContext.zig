@@ -7,12 +7,18 @@ const zeroInit = std.mem.zeroInit;
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
 
+////// Fields
 /// Vulkan instance
 instance: c.VkInstance,
+/// Debug messenger object
+debugMessenger: c.VkDebugUtilsMessengerEXT,
 // /// Logical device
 // device: c.VkDevice,
 // /// Present queue. Currently, only this one queue
 // presentQueue: c.VkQueue,x
+
+////// Methods
+
 pub fn init(window: *c.SDL_Window) !@This() {
     var buf: [1024]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&buf);
@@ -22,9 +28,9 @@ pub fn init(window: *c.SDL_Window) !@This() {
         @panic("Failed to get required extensions");
     }
     // Create instance
-    const instance = try createVkInstance(extensions[0..n_exts]);
+    const inst_debug = try createVkInstance(extensions[0..n_exts]);
     // Enumerate and selct physical devices
-    const physDevices = try enumeratePhysicalDevices(instance, fba.allocator());
+    const physDevices = try enumeratePhysicalDevices(inst_debug[0], fba.allocator());
     defer physDevices.deinit();
     for (physDevices.items) |p| {
         printPhysicalDeviceInfo(p);
@@ -33,14 +39,15 @@ pub fn init(window: *c.SDL_Window) !@This() {
     print("Selected physical device: 0x{x}\n", .{@ptrToInt(physDevice)});
     // Create logical device
     return @This(){
-        .instance = instance,
+        .instance = inst_debug[0],
+        .debugMessenger = inst_debug[1],
         // .device = null,
     };
 }
 
 ////// Instance
 
-fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
+fn createVkInstance(exts: []?[*:0]const u8) !struct { c.VkInstance, c.VkDebugUtilsMessengerEXT } {
     // This is the actual required extensions
     var actual_exts = try std.BoundedArray(?[*:0]const u8, 16).init(0);
     try actual_exts.appendSlice(exts);
@@ -58,7 +65,6 @@ fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
             c.VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | c.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
         .pfnUserCallback = &debugCallback,
     });
-
     // Create instance
     const appInfo = zeroInit(c.VkApplicationInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -80,9 +86,7 @@ fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
     });
     var instance: c.VkInstance = undefined;
     const result = c.vkCreateInstance(&instanceCI, null, &instance);
-    if (result == c.VK_SUCCESS) {
-        return instance;
-    } else if (result == c.VK_ERROR_INCOMPATIBLE_DRIVER) {
+    if (result == c.VK_SUCCESS) {} else if (result == c.VK_ERROR_INCOMPATIBLE_DRIVER) {
         std.log.info("Failed to create Vulkan instance, trying again with portability subset. This is normal on Mac OS", .{});
         // Try again with portability
         try actual_exts.append(c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
@@ -93,7 +97,30 @@ fn createVkInstance(exts: []?[*:0]const u8) !c.VkInstance {
     } else {
         vk.check(result, "Failed to create VkInstance");
     }
-    return instance;
+    var debugMessenger: c.VkDebugUtilsMessengerEXT = null;
+    const vkCreateDebugUtilsMessengerEXT = @ptrCast(
+        c.PFN_vkCreateDebugUtilsMessengerEXT,
+        c.vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"),
+    );
+    if (vkCreateDebugUtilsMessengerEXT) |f| {
+        vk.check(f(instance, &debugCI, null, &debugMessenger), "Failed to create VkDebugUtilsMessengerEXT");
+    }
+    return .{ instance, debugMessenger };
+}
+
+pub fn deinit(self: *@This()) void {
+    const vkDestroyDebugUtilsMessengerEXT = @ptrCast(
+        c.PFN_vkDestroyDebugUtilsMessengerEXT,
+        c.vkGetInstanceProcAddr(self.instance, "vkDestroyDebugUtilsMessengerEXT"),
+    );
+    if (vkDestroyDebugUtilsMessengerEXT) |f| {
+        if (self.debugMessenger) |m| {
+            f(self.instance, m, null);
+        }
+    }
+    self.debugMessenger = undefined;
+    c.vkDestroyInstance(self.instance, null);
+    self.instance = undefined;
 }
 
 export fn debugCallback(
@@ -112,7 +139,7 @@ export fn debugCallback(
     } else if (msgType & c.VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT != 0) {
         msg.writer().print("PERFORMANCE -- ", .{}) catch @panic("Debug messenger out of memory");
     } else if (msgType & c.VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT != 0) {
-        msg.writer().print("ADDRESS BINDING -- ", .{})  catch @panic("Debug messenger out of memory");
+        msg.writer().print("ADDRESS BINDING -- ", .{}) catch @panic("Debug messenger out of memory");
     }
     const dat = callbackData orelse return c.VK_FALSE;
     // ID

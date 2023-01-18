@@ -34,6 +34,7 @@ pub const Renderer = struct {
         };
     }
     pub fn deinit(self: *Renderer) void {
+        self.context.deinit();
         c.SDL_DestroyWindow(self.window);
         self.window = undefined;
     }
