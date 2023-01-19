@@ -10,7 +10,7 @@ const Allocator = std.mem.Allocator;
 
 context: *const VulkanContext,
 surface: c.VkSurfaceKHR,
-swapchain: c.VkSwapchainKHR,
+// swapchain: c.VkSwapchainKHR,
 // swapchainImages: c.VkImage,
 // swapchainViews: c.VkImageView,
 
@@ -22,27 +22,29 @@ pub fn init(context: *const VulkanContext, window: *c.SDL_Window) !@This() {
     var width: i32 = undefined;
     var height: i32 = undefined;
     c.SDL_GetWindowSize(window, &width, &height);
-    const swapchain = try createSwapchain(
-        context,
-        surface,
-        @intCast(u32, width),
-        @intCast(u32, height),
-        null,
-    );
-    std.log.debug("Created VkSwapchainKHR [0x{x}]", .{@ptrToInt(swapchain)});
+    // const swapchain = try createSwapchain(
+    //     context,
+    //     surface,
+    //     @intCast(u32, width),
+    //     @intCast(u32, height),
+    //     null,
+    // );
+    // std.log.debug("Created VkSwapchainKHR [0x{x}]", .{@ptrToInt(swapchain)});
     return @This(){
         .context = context,
         .surface = surface,
-        .swapchain = swapchain,
+        // .swapchain = swapchain,
     };
 }
 
 pub fn deinit(self: *@This()) void {
-    c.vkDestroySwapchainKHR(self.context.device, self.swapchain, null);
-    self.swapchain = undefined;
+    std.log.debug("VulkanOutput.deinit()", .{});
+    // std.log.debug("Destroying VkSwapchainKHR [0x{x}]", .{@ptrToInt(self.swapchain)});
+    // c.vkDestroySwapchainKHR(self.context.device, self.swapchain, null);
+    // self.swapchain = undefined;
     c.vkDestroySurfaceKHR(self.context.instance, self.surface, null);
-    self.surface = undefined;
-    self.context = undefined;
+    // self.surface = undefined;
+    // self.context = undefined;
 }
 
 fn createSwapchain(
@@ -57,12 +59,24 @@ fn createSwapchain(
         c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(context.physicalDevice, surface, &capabilities),
         "Failed to get physical device capabilities",
     );
-    const swapchainCI = zeroInit(c.VkSwapchainCreateInfoKHR, .{
+    var formatCount: u32 = undefined;
+    vk.check(
+        c.vkGetPhysicalDeviceSurfaceFormatsKHR(context.physicalDevice, surface, &formatCount, null),
+        "Failed to get number of surface formats",
+    );
+    var formats = try std.BoundedArray(c.VkSurfaceFormatKHR, 128).init(formatCount);
+    vk.check(
+        c.vkGetPhysicalDeviceSurfaceFormatsKHR(context.physicalDevice, surface, &formatCount, &formats.buffer),
+        "Failed to get number of surface formats",
+    );
+    const swapchainCI = c.VkSwapchainCreateInfoKHR {
         .sType = c.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .pNext = null,
+        .flags = 0,
         .surface = surface,
         .minImageCount = 3,
-        .imageFormat = c.VK_FORMAT_B8G8R8A8_SRGB,
-        .imageColorSpace = c.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+        .imageFormat = formats.buffer[0].format,
+        .imageColorSpace = formats.buffer[0].colorSpace,
         // TODO: clamp this
         .imageExtent = c.VkExtent2D{
             .width = width,
@@ -78,7 +92,7 @@ fn createSwapchain(
         .presentMode = c.VK_PRESENT_MODE_FIFO_KHR,
         .clipped = c.VK_TRUE,
         .oldSwapchain = oldSwapchain,
-    });
+    };
     var swapchain: c.VkSwapchainKHR = undefined;
     vk.check(
         c.vkCreateSwapchainKHR(context.device, &swapchainCI, null, &swapchain),

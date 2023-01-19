@@ -121,6 +121,7 @@ fn createVkInstance(exts: []?[*:0]const u8) !struct { c.VkInstance, c.VkDebugUti
 }
 
 pub fn deinit(self: *@This()) void {
+    std.log.debug("VulkanContext.deinit()", .{});
     c.vkDestroyDevice(self.device, null);
     self.device = undefined;
     const vkDestroyDebugUtilsMessengerEXT = @ptrCast(
