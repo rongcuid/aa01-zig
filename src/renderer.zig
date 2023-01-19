@@ -19,7 +19,6 @@ pub fn quitSDL() void {
     c.SDL_Quit();
 }
 
-
 pub const Renderer = struct {
     window: *c.SDL_Window,
     context: VulkanContext,
@@ -31,7 +30,14 @@ pub const Renderer = struct {
             return error.SDLInitializationFailed;
         };
         const context = try VulkanContext.init(window);
-        const output = try VulkanOutput.init(&context, window, std.heap.c_allocator);
+        const output = try VulkanOutput.init(
+            std.heap.c_allocator,
+            context.instance,
+            context.physicalDevice,
+            context.device,
+            context.graphicsQueueFamilyIndex,
+            window,
+        );
         return Renderer{
             .window = window,
             .context = context,
