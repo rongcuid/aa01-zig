@@ -2,7 +2,6 @@ const c = @import("c.zig");
 const std = @import("std");
 const vk = @import("vk.zig");
 
-const print = std.debug.print;
 const zeroInit = std.mem.zeroInit;
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
@@ -38,7 +37,7 @@ pub fn init(window: *c.SDL_Window) !@This() {
         printPhysicalDeviceInfo(p);
     }
     const physDevice = selectPhysicalDevice(physDevices.items);
-    print("Selected physical device: 0x{x}\n", .{@ptrToInt(physDevice)});
+    std.log.info("Selected physical device: 0x{x}", .{@ptrToInt(physDevice)});
     // Create logical device
     const gqIndex = try getGraphicsQueueFamilyIndex(physDevice);
     const device = try createDevice(physDevice, gqIndex, inst_debug[2]);
@@ -203,7 +202,7 @@ fn physicalDeviceTypeName(props: *const c.VkPhysicalDeviceProperties) []const u8
 
 fn printPhysicalDeviceInfo(phys: c.VkPhysicalDevice) void {
     const props = getPhysicalDeviceProperties(phys);
-    print("Device: [{s}] ({s})\n", .{ props.deviceName, physicalDeviceTypeName(&props) });
+    std.log.info("Device: [{s}] ({s})", .{ props.deviceName, physicalDeviceTypeName(&props) });
 }
 
 /// Currently, just pick the first device
