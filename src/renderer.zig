@@ -31,7 +31,7 @@ pub const Renderer = struct {
             return error.SDLInitializationFailed;
         };
         const context = try VulkanContext.init(window);
-        const output = try VulkanOutput.init(&context, window);
+        const output = try VulkanOutput.init(&context, window, std.heap.c_allocator);
         return Renderer{
             .window = window,
             .context = context,
