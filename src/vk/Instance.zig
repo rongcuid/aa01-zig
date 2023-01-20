@@ -4,10 +4,17 @@ const vk = @import("../vk.zig");
 
 const zeroInit = std.mem.zeroInit;
 
+/// Owns
 vkInstance: c.VkInstance,
+/// Owns
 vkDebugMessenger: c.VkDebugUtilsMessengerEXT,
+/// Whether `VK_KHR_portability_subset` is enabled
 portability: bool,
 
+/// Initializes a Vulkan instance. Enables all validation and all messages.
+///
+///Currently requires a SDL2 window due to SDL API.
+/// With SDL greater than 2.26.2, `window` can be NULL. Therefore, this argument will be deprecated.
 pub fn init(window: *c.SDL_Window) !@This() {
     var n_exts: c_uint = undefined;
     var extensions: [16]?[*:0]const u8 = undefined;
@@ -75,6 +82,7 @@ pub fn init(window: *c.SDL_Window) !@This() {
     };
 }
 
+/// Checks whether portability subset needs to be enabled
 fn checkPortability() !bool {
     var count: u32 = undefined;
     vk.check(
@@ -145,10 +153,12 @@ export fn debugCallback(
     return c.VK_FALSE;
 }
 
+/// Get an instance level extension function
 pub fn pfn(self: *const @This(), comptime name: [*:0]const u8) @TypeOf(vk.PfnI(name).get(self.vkInstance)) {
     return vk.PfnI(name).get(self.vkInstance);
 }
 
+/// Select the first physical device that fulfills requirements
 pub fn selectPhysicalDevice(self: *const @This()) !c.VkPhysicalDevice {
     var buf: [1024]u8 = undefined;
     var fba = std.heap.FixedBufferAllocator.init(&buf);
