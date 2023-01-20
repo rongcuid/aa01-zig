@@ -22,7 +22,7 @@ pub fn init() !Self {
     const context = try VulkanContext.init(window);
     const output = try VulkanOutput.init(
         std.heap.c_allocator,
-        context.instance,
+        context.instance.vkInstance,
         context.physicalDevice,
         context.device,
         context.graphicsQueueFamilyIndex,
