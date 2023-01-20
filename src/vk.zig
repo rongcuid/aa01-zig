@@ -14,18 +14,23 @@ pub fn check(result: c.VkResult, message: []const u8) void {
     }
 }
 
-pub fn PfnInstance(comptime pfn: []const u8) type {
+/// Load a PFN from an instance.
+/// FIXME: currently assumes only one instance!
+pub fn PfnInstance(comptime pfn: [*:0]const u8) type {
     const pfn_typename = "PFN_" ++ pfn;
     const T = @field(c, pfn_typename);
     const P = @typeInfo(T).Optional.child;
     return struct {
+        var ptr: T = null;
         pub fn get(instance: c.VkInstance) !P {
-            std.log.debug("PFN: {s}", .{pfn_typename});
-            const p = @ptrCast(
-                T,
-                c.vkGetInstanceProcAddr(instance, pfn.ptr),
-            );
-            return p orelse return error.PfnNotLoaded;
+            return ptr orelse {
+                std.log.debug("Loading [{s}]", .{pfn_typename});
+                ptr = @ptrCast(
+                    T,
+                    c.vkGetInstanceProcAddr(instance, pfn),
+                );
+                return ptr orelse return error.PfnNotFound;
+            };
         }
     };
 }
