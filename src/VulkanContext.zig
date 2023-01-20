@@ -109,20 +109,12 @@ fn createVkInstance(exts: []?[*:0]const u8) !struct { c.VkInstance, c.VkDebugUti
         vk.check(result, "Failed to create VkInstance");
     }
     var debugMessenger: c.VkDebugUtilsMessengerEXT = null;
-    if (try vk.Pfn(c.PFN_vkCreateDebugUtilsMessengerEXT).get(instance)) |f| {
-        vk.check(
-            f(instance, &debugCI, null, &debugMessenger),
-            "Failed to create VkDebugUtilsMessengerEXT",
-        );
-    }
+    const vkCreateDebugUtilsMessengerEXT = @ptrCast(
+        c.PFN_vkCreateDebugUtilsMessengerEXT,
+        c.vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"),
+    );
+    vk.check(vkCreateDebugUtilsMessengerEXT.?(instance, &debugCI, null, &debugMessenger), "Failed to create VkDebugUtilsMessengerEXT");
 
-    // const vkCreateDebugUtilsMessengerEXT = @ptrCast(
-    //     c.PFN_vkCreateDebugUtilsMessengerEXT,
-    //     c.vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"),
-    // );
-    // if (vkCreateDebugUtilsMessengerEXT) |f| {
-    //     vk.check(f(instance, &debugCI, null, &debugMessenger), "Failed to create VkDebugUtilsMessengerEXT");
-    // }
     return .{ instance, debugMessenger, portability };
 }
 
