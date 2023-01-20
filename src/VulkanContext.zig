@@ -1,7 +1,6 @@
 const c = @import("c.zig");
 const std = @import("std");
-// const vk = @import("vk.zig");
-const vk = @import("vulkan");
+const vk = @import("vk.zig");
 
 const zeroInit = std.mem.zeroInit;
 const assert = std.debug.assert;
