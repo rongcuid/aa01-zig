@@ -18,6 +18,11 @@ pub fn init(window: *c.SDL_Window) !@This() {
     var actual_exts = try std.BoundedArray(?[*:0]const u8, 16).init(0);
     try actual_exts.appendSlice(extensions[0..n_exts]);
     try actual_exts.append(c.VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    var portability = try checkPortability();
+    if (portability) {
+        std.log.info("Vulkan requires portability subset", .{});
+        try actual_exts.append(c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+    }
     // TODO: check if validation layer is available
     var layers = try std.BoundedArray([*:0]const u8, 16).init(0);
     try layers.append("VK_LAYER_KHRONOS_validation");
@@ -50,21 +55,14 @@ pub fn init(window: *c.SDL_Window) !@This() {
         .ppEnabledLayerNames = &layers.buffer,
         .flags = 0,
     });
-    var instance: c.VkInstance = undefined;
-    const result = c.vkCreateInstance(&instanceCI, null, &instance);
-    var portability = false;
-    if (result == c.VK_SUCCESS) {} else if (result == c.VK_ERROR_INCOMPATIBLE_DRIVER) {
-        std.log.info("Failed to create Vulkan instance, trying again with portability subset. This is normal on Mac OS", .{});
-        portability = true;
-        // Try again with portability
-        try actual_exts.append(c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-        instanceCI.enabledExtensionCount = @intCast(c_uint, actual_exts.len);
-        instanceCI.ppEnabledExtensionNames = &actual_exts.buffer;
+    if (portability) {
         instanceCI.flags |= c.VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-        vk.check(c.vkCreateInstance(&instanceCI, null, &instance), "Failed to create VkInstance with portability subset");
-    } else {
-        vk.check(result, "Failed to create VkInstance");
     }
+    var instance: c.VkInstance = undefined;
+    vk.check(
+        c.vkCreateInstance(&instanceCI, null, &instance),
+        "Failed to create VkInstance",
+    );
     var debugMessenger: c.VkDebugUtilsMessengerEXT = null;
     vk.check(
         vk.PfnI("vkCreateDebugUtilsMessengerEXT").get(instance)(instance, &debugCI, null, &debugMessenger),
@@ -77,8 +75,29 @@ pub fn init(window: *c.SDL_Window) !@This() {
     };
 }
 
+fn checkPortability() !bool {
+    var count: u32 = undefined;
+    vk.check(
+        c.vkEnumerateInstanceExtensionProperties(null, &count, null),
+        "Failed to enumerate number of instance extensions",
+    );
+    var exts = try std.BoundedArray(c.VkExtensionProperties, 256).init(count);
+    vk.check(
+        c.vkEnumerateInstanceExtensionProperties(null, &count, &exts.buffer),
+        "Failed to enumerate instance extensions",
+    );
+    for (exts.buffer) |prop| {
+        const ext = std.mem.sliceTo(&prop.extensionName, 0);
+        // std.cstr.cmp(&prop.extensionName, c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+        if (std.mem.eql(u8, ext, c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 pub fn deinit(self: *@This()) void {
-    std.log.debug("@This().deinit()", .{});
+    std.log.debug("Instance.deinit()", .{});
     if (self.vkDebugMessenger) |m| {
         self.pfn("vkDestroyDebugUtilsMessengerEXT")(
             self.vkInstance,
@@ -128,4 +147,78 @@ export fn debugCallback(
 
 pub fn pfn(self: *const @This(), comptime name: [*:0]const u8) @TypeOf(vk.PfnI(name).get(self.vkInstance)) {
     return vk.PfnI(name).get(self.vkInstance);
+}
+
+pub fn selectPhysicalDevice(self: *const @This()) !c.VkPhysicalDevice {
+    var buf: [1024]u8 = undefined;
+    var fba = std.heap.FixedBufferAllocator.init(&buf);
+    const physDevs = try enumeratePhysicalDevices(fba.allocator(), self.vkInstance);
+    for (physDevs.items) |p| {
+
+        var props = zeroInit(c.VkPhysicalDeviceProperties2, .{
+            .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+            .pNext = null,
+        });
+        c.vkGetPhysicalDeviceProperties2(p, &props);
+        if (props.properties.apiVersion < c.VK_API_VERSION_1_2) {
+            std.log.info("[{s}] does not support Vulkan 1.2", .{props.properties.deviceName});
+            continue;
+        } else {
+            std.log.info("[{s}] supports Vulkan 1.2", .{props.properties.deviceName});
+        }
+        var dynamic = zeroInit(c.VkPhysicalDeviceDynamicRenderingFeaturesKHR, .{
+            .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+            .dynamicRendering = 1,
+        });
+        var features = zeroInit(c.VkPhysicalDeviceFeatures2, .{
+            .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+            .pNext = &dynamic,
+        });
+        c.vkGetPhysicalDeviceFeatures2(p, &features);
+        if (dynamic.dynamicRendering == 0) {
+            std.log.info("[{s}] does not support dynamic rendering", .{props.properties.deviceName});
+            continue;
+        } else {
+            std.log.info("[{s}] supports dynamic rendering", .{props.properties.deviceName});
+        }
+        return p;
+    }
+    return error.NoDeviceFound;
+}
+
+fn enumeratePhysicalDevices(alloc: std.mem.Allocator, instance: c.VkInstance) !std.ArrayList(c.VkPhysicalDevice) {
+    var count: u32 = undefined;
+    vk.check(
+        c.vkEnumeratePhysicalDevices(instance, &count, null),
+        "Failed to enumerate number of physical devices",
+    );
+    var phys = std.ArrayList(c.VkPhysicalDevice).init(alloc);
+    try phys.appendNTimes(undefined, count);
+    vk.check(
+        c.vkEnumeratePhysicalDevices(instance, &count, phys.items.ptr),
+        "Failed to enumerate physical devices",
+    );
+    return phys;
+}
+
+fn getPhysicalDeviceProperties(phys: c.VkPhysicalDevice) c.VkPhysicalDeviceProperties {
+    var props: c.VkPhysicalDeviceProperties = undefined;
+    c.vkGetPhysicalDeviceProperties(phys, &props);
+    return props;
+}
+
+fn physicalDeviceTypeName(props: *const c.VkPhysicalDeviceProperties) []const u8 {
+    return switch (props.deviceType) {
+        c.VK_PHYSICAL_DEVICE_TYPE_OTHER => "Other",
+        c.VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU => "Integrated",
+        c.VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU => "Discrete",
+        c.VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU => "Virtual",
+        c.VK_PHYSICAL_DEVICE_TYPE_CPU => "CPU",
+        else => unreachable,
+    };
+}
+
+fn printPhysicalDeviceInfo(phys: c.VkPhysicalDevice) void {
+    const props = getPhysicalDeviceProperties(phys);
+    std.log.info("Device: [{s}] ({s})", .{ props.deviceName, physicalDeviceTypeName(&props) });
 }
