@@ -10,8 +10,8 @@ const Allocator = std.mem.Allocator;
 /// Vulkan instance
 instance: vk.Instance,
 physicalDevice: c.VkPhysicalDevice,
-/// Logical device
-device: c.VkDevice,
+
+device: vk.Device,
 graphicsQueueFamilyIndex: u32,
 /// Graphics queue. Currently, assume that graphics queue can present
 graphicsQueue: c.VkQueue,
@@ -32,9 +32,9 @@ pub fn init(window: *c.SDL_Window) !@This() {
     std.log.info("Selected physical device: 0x{x}", .{@ptrToInt(physDevice)});
     // Create logical device
     const gqIndex = try getGraphicsQueueFamilyIndex(physDevice);
-    const device = try createDevice(physDevice, gqIndex, instance.portability);
+    const device = try vk.Device.init(physDevice, gqIndex, instance.portability);
     var queue: c.VkQueue = undefined;
-    c.vkGetDeviceQueue(device, gqIndex, 0, &queue);
+    c.vkGetDeviceQueue(device.device, gqIndex, 0, &queue);
     return @This(){
         .instance = instance,
         .physicalDevice = physDevice,
@@ -45,14 +45,9 @@ pub fn init(window: *c.SDL_Window) !@This() {
 }
 pub fn deinit(self: *@This())void {
     std.log.debug("VulkanContext.deinit()", .{});
-    c.vkDestroyDevice(self.device, null);
-    self.device = undefined;
+    self.device.deinit();
     self.instance.deinit();
 }
-
-////// Instance
-
-
 
 ////// Physical devices
 
@@ -108,39 +103,4 @@ fn getGraphicsQueueFamilyIndex(phys: c.VkPhysicalDevice) !u32 {
         }
     }
     return error.NoGraphicsQueue;
-}
-
-////// Logical device
-fn createDevice(
-    phys: c.VkPhysicalDevice,
-    graphicsQueueFamilyIndex: u32,
-    portability: bool,
-) !c.VkDevice {
-    const priority: f32 = 1.0;
-    const queueCI = zeroInit(c.VkDeviceQueueCreateInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .queueFamilyIndex = graphicsQueueFamilyIndex,
-        .queueCount = 1,
-        .pQueuePriorities = &priority,
-    });
-    var features = zeroInit(c.VkPhysicalDeviceFeatures, .{});
-    var extensions = try std.BoundedArray([*:0]const u8, 16).init(0);
-    try extensions.append(c.VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-    if (portability) {
-        try extensions.append("VK_KHR_portability_subset");
-    }
-    const layers = [1][*:0]const u8{"VK_LAYER_KHRONOS_validation"};
-    const deviceCI = zeroInit(c.VkDeviceCreateInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .pQueueCreateInfos = &queueCI,
-        .queueCreateInfoCount = 1,
-        .pEnabledFeatures = &features,
-        .enabledExtensionCount = @intCast(u32, extensions.len),
-        .ppEnabledExtensionNames = &extensions.buffer,
-        .enabledLayerCount = layers.len,
-        .ppEnabledLayerNames = &layers,
-    });
-    var device: c.VkDevice = undefined;
-    vk.check(c.vkCreateDevice(phys, &deviceCI, null, &device), "Failed to create VkDevice");
-    return device;
 }

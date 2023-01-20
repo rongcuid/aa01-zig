@@ -24,7 +24,7 @@ pub fn init() !Self {
         std.heap.c_allocator,
         context.instance.vkInstance,
         context.physicalDevice,
-        context.device,
+        context.device.device,
         context.graphicsQueueFamilyIndex,
         window,
     );
