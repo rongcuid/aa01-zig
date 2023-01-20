@@ -1,6 +1,7 @@
 const std = @import("std");
+const vkgen = @import("vulkan-zig/generator/index.zig");
 
-pub fn build(b: *std.build.Builder) void {
+pub fn build(b: *std.build.Builder) !void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
@@ -14,10 +15,19 @@ pub fn build(b: *std.build.Builder) void {
     const exe = b.addExecutable("aa01-zig", "src/main.zig");
     exe.setTarget(target);
     exe.setBuildMode(mode);
+
+    exe.linkLibC();
     exe.linkSystemLibrary("SDL2");
     exe.linkSystemLibrary("vulkan");
     exe.linkSystemLibrary("c");
+
     exe.install();
+
+    // Create a step that generates vk.zig (stored in zig-cache) from the provided vulkan registry.
+    const gen = vkgen.VkGenerateStep.create(b, "vk.xml", "vk.zig");
+    // Add the generated file as package to the final executable
+    exe.addPackage(gen.getPackage("vulkan"));
+    
 
     const run_cmd = exe.run();
     run_cmd.step.dependOn(b.getInstallStep());

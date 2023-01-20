@@ -1,6 +1,7 @@
 const c = @import("c.zig");
 const std = @import("std");
-const vk = @import("vk.zig");
+// const vk = @import("vk.zig");
+const vk = @import("vulkan");
 
 const zeroInit = std.mem.zeroInit;
 const assert = std.debug.assert;
@@ -109,13 +110,20 @@ fn createVkInstance(exts: []?[*:0]const u8) !struct { c.VkInstance, c.VkDebugUti
         vk.check(result, "Failed to create VkInstance");
     }
     var debugMessenger: c.VkDebugUtilsMessengerEXT = null;
-    const vkCreateDebugUtilsMessengerEXT = @ptrCast(
-        c.PFN_vkCreateDebugUtilsMessengerEXT,
-        c.vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"),
-    );
-    if (vkCreateDebugUtilsMessengerEXT) |f| {
-        vk.check(f(instance, &debugCI, null, &debugMessenger), "Failed to create VkDebugUtilsMessengerEXT");
+    if (try vk.Pfn(c.PFN_vkCreateDebugUtilsMessengerEXT).get(instance)) |f| {
+        vk.check(
+            f(instance, &debugCI, null, &debugMessenger),
+            "Failed to create VkDebugUtilsMessengerEXT",
+        );
     }
+
+    // const vkCreateDebugUtilsMessengerEXT = @ptrCast(
+    //     c.PFN_vkCreateDebugUtilsMessengerEXT,
+    //     c.vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"),
+    // );
+    // if (vkCreateDebugUtilsMessengerEXT) |f| {
+    //     vk.check(f(instance, &debugCI, null, &debugMessenger), "Failed to create VkDebugUtilsMessengerEXT");
+    // }
     return .{ instance, debugMessenger, portability };
 }
 
