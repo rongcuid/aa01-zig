@@ -109,9 +109,10 @@ fn createVkInstance(exts: []?[*:0]const u8) !struct { c.VkInstance, c.VkDebugUti
         vk.check(result, "Failed to create VkInstance");
     }
     var debugMessenger: c.VkDebugUtilsMessengerEXT = null;
-    const vkCreateDebugUtilsMessengerEXT = try vk.PfnInstance("vkCreateDebugUtilsMessengerEXT").get(instance);
-
-    vk.check(vkCreateDebugUtilsMessengerEXT(instance, &debugCI, null, &debugMessenger), "Failed to create VkDebugUtilsMessengerEXT");
+    vk.check(
+        vk.PfnI("vkCreateDebugUtilsMessengerEXT").get(instance)(instance, &debugCI, null, &debugMessenger),
+        "Failed to create VkDebugUtilsMessengerEXT",
+    );
 
     return .{ instance, debugMessenger, portability };
 }
@@ -120,14 +121,12 @@ pub fn deinit(self: *@This()) void {
     std.log.debug("VulkanContext.deinit()", .{});
     c.vkDestroyDevice(self.device, null);
     self.device = undefined;
-    const vkDestroyDebugUtilsMessengerEXT = @ptrCast(
-        c.PFN_vkDestroyDebugUtilsMessengerEXT,
-        c.vkGetInstanceProcAddr(self.instance, "vkDestroyDebugUtilsMessengerEXT"),
-    );
-    if (vkDestroyDebugUtilsMessengerEXT) |f| {
-        if (self.debugMessenger) |m| {
-            f(self.instance, m, null);
-        }
+    if (self.debugMessenger) |m| {
+        vk.PfnI("vkDestroyDebugUtilsMessengerEXT").get(self.instance)(
+            self.instance,
+            m,
+            null,
+        );
     }
     self.debugMessenger = undefined;
     c.vkDestroyInstance(self.instance, null);
