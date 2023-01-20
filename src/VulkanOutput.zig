@@ -35,7 +35,7 @@ pub fn init(
     const swapchain = try Swapchain.init(
         allocator,
         context.physicalDevice,
-        context.device.device,
+        context.device.vkDevice,
         context.graphicsQueueFamilyIndex,
         surface,
         @intCast(u32, width),
@@ -44,7 +44,7 @@ pub fn init(
 
     return Self{
         .instance = context.instance.vkInstance,
-        .device = context.device.device,
+        .device = context.device.vkDevice,
         .surface = surface,
         .swapchain = swapchain,
     };
@@ -58,3 +58,4 @@ pub fn deinit(self: *Self) void {
     self.device = undefined;
     self.instance = undefined;
 }
+

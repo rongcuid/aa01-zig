@@ -4,7 +4,7 @@ const vk = @import("../vk.zig");
 const zeroInit = std.mem.zeroInit;
 
 /// Logical device
-device: c.VkDevice,
+vkDevice: c.VkDevice,
 
 pub fn init(
     phys: c.VkPhysicalDevice,
@@ -38,12 +38,12 @@ pub fn init(
     var device: c.VkDevice = undefined;
     vk.check(c.vkCreateDevice(phys, &deviceCI, null, &device), "Failed to create VkDevice");
     return @This() {
-        .device = device,
+        .vkDevice = device,
     };
 }
 
 pub fn deinit(self: *@This()) void {
     std.log.debug("Device.deinit()", .{});
-    c.vkDestroyDevice(self.device, null);
-    self.device = undefined;
+    c.vkDestroyDevice(self.vkDevice, null);
+    self.vkDevice = undefined;
 }

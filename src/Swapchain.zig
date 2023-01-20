@@ -11,6 +11,7 @@ const Allocator = std.mem.Allocator;
 device: c.VkDevice,
 surface: c.VkSurfaceKHR,
 swapchain: c.VkSwapchainKHR,
+current_frame: usize,
 images: std.ArrayList(c.VkImage),
 views: std.ArrayList(c.VkImageView),
 
@@ -55,13 +56,13 @@ pub fn init(
             .image = img,
             .viewType = c.VK_IMAGE_VIEW_TYPE_2D,
             .format = formats.items[0].format,
-            .components = c.VkComponentMapping {
+            .components = c.VkComponentMapping{
                 .r = c.VK_COMPONENT_SWIZZLE_IDENTITY,
                 .g = c.VK_COMPONENT_SWIZZLE_IDENTITY,
                 .b = c.VK_COMPONENT_SWIZZLE_IDENTITY,
                 .a = c.VK_COMPONENT_SWIZZLE_IDENTITY,
             },
-            .subresourceRange = c.VkImageSubresourceRange {
+            .subresourceRange = c.VkImageSubresourceRange{
                 .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
                 .baseMipLevel = 0,
                 .levelCount = 1,
@@ -80,6 +81,7 @@ pub fn init(
         .device = device,
         .surface = surface,
         .swapchain = swapchain,
+        .current_frame = 0,
         .images = images,
         .views = views,
     };
@@ -159,4 +161,12 @@ fn createSwapchain(
         "Failed to create VkSwapchainKHR",
     );
     return swapchain;
+}
+
+pub fn acquire(self: *@This()) !usize {
+    c.vkAcquireNextImageKHR(
+        self.device,
+        self.swapchain,
+        c.UINT64_MAX,
+    );
 }

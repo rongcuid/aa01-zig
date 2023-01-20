@@ -2,6 +2,7 @@ const c = @import("c.zig");
 const std = @import("std");
 const zeroInit = @import("std").mem.zeroInit;
 const assert = @import("std").debug.assert;
+const vk = @import("vk.zig");
 
 const VulkanContext = @import("VulkanContext.zig");
 const VulkanOutput = @import("VulkanOutput.zig");
@@ -36,4 +37,15 @@ pub fn deinit(self: *Self) void {
     self.context.deinit();
     c.SDL_DestroyWindow(self.window);
     self.window = undefined;
+}
+
+pub fn render(self: *Self) void {
+    vk.check(
+        c.vkResetCommandPool(
+            self.context.device.vkDevice,
+            self.context.commandPool,
+            c.VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT,
+        ),
+        "Failed to reset command pool",
+    );
 }

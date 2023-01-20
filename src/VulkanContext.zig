@@ -16,6 +16,8 @@ graphicsQueueFamilyIndex: u32,
 /// Graphics queue. Currently, assume that graphics queue can present
 graphicsQueue: c.VkQueue,
 
+commandPool: c.VkCommandPool,
+
 ////// Methods
 
 pub fn init(window: *c.SDL_Window) !@This() {
@@ -34,17 +36,21 @@ pub fn init(window: *c.SDL_Window) !@This() {
     const gqIndex = try getGraphicsQueueFamilyIndex(physDevice);
     const device = try vk.Device.init(physDevice, gqIndex, instance.portability);
     var queue: c.VkQueue = undefined;
-    c.vkGetDeviceQueue(device.device, gqIndex, 0, &queue);
+    c.vkGetDeviceQueue(device.vkDevice, gqIndex, 0, &queue);
+    // Command pool
+    const commandPool = try createCommandPool(device.vkDevice, gqIndex);
     return @This(){
         .instance = instance,
         .physicalDevice = physDevice,
         .device = device,
         .graphicsQueueFamilyIndex = gqIndex,
         .graphicsQueue = queue,
+        .commandPool = commandPool,
     };
 }
-pub fn deinit(self: *@This())void {
+pub fn deinit(self: *@This()) void {
     std.log.debug("VulkanContext.deinit()", .{});
+    c.vkDestroyCommandPool(self.device.vkDevice, self.commandPool, null);
     self.device.deinit();
     self.instance.deinit();
 }
@@ -103,4 +109,19 @@ fn getGraphicsQueueFamilyIndex(phys: c.VkPhysicalDevice) !u32 {
         }
     }
     return error.NoGraphicsQueue;
+}
+
+////// Command pool
+
+fn createCommandPool(device: c.VkDevice, queueFamilyIndex: u32) !c.VkCommandPool {
+    const ci = zeroInit(c.VkCommandPoolCreateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .queueFamilyIndex = queueFamilyIndex,
+    });
+    var commandPool: c.VkCommandPool = undefined;
+    vk.check(
+        c.vkCreateCommandPool(device, &ci, null, &commandPool),
+        "Failed to create command pool",
+    );
+    return commandPool;
 }

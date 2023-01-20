@@ -20,7 +20,7 @@ pub fn main() !void {
                 else => {},
             }
         }
-
+        r.render();
         c.SDL_Delay(17);
     }
 }
