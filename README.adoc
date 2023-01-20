@@ -2,10 +2,11 @@
 
 == Roadmap: Renderer
 
-* [x] Proper Instance creation
+* [x] Proper Instance creation - 20230120
 ** [x] Volk -- Will not work! LSP doesn't autocomplete
 ** [x] Portability subset
 ** [x] Check for physical device features (VK 1.2 and dynamic rendering)
-* [ ] Merge `VulkanContext` and `VulkanOutput`
-* [ ] Proper wrappers/handles
+* [ ] Overall refactor
+** [ ] Merge `VulkanContext` and `VulkanOutput`
+** [ ] Proper wrappers/handles
 * [ ] Swapchain images, frames, semaphores, and fences
