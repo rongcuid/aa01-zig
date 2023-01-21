@@ -32,7 +32,7 @@ pub fn render(
     const color_att_info = zeroInit(c.VkRenderingAttachmentInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
         .imageView = out_view,
-        .imageLayout = out_layout,
+        .imageLayout = c.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
         .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
         .clearValue = self.clear_color,
@@ -68,7 +68,7 @@ fn begin_transition(
 ) !void {
     const image_barrier = zeroInit(c.VkImageMemoryBarrier, .{
         .sType = c.VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask = c.VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .dstAccessMask = c.VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
         .oldLayout = c.VK_IMAGE_LAYOUT_UNDEFINED,
         .newLayout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         .image = image,
@@ -104,7 +104,7 @@ fn end_transition(
     }
     const image_barrier = zeroInit(c.VkImageMemoryBarrier, .{
         .sType = c.VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .dstAccessMask = c.VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        .srcAccessMask = c.VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
         .oldLayout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         .newLayout = out_layout,
         .image = image,

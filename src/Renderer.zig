@@ -64,6 +64,8 @@ pub fn render(self: *Self) void {
     const image = self.context.swapchain.images.items[acquired.frame];
     const view = self.context.swapchain.views.items[acquired.frame];
     const fence = self.context.swapchain.fences.items[acquired.frame];
+    const ias = self.context.swapchain.acquisition_semaphores.items[acquired.frame];
+    const rcs = self.context.swapchain.render_complete_semaphores.items[acquired.frame];
     const area = zeroInit(c.VkRect2D, .{
         .extent = self.context.swapchain.extent,
     });
@@ -77,5 +79,21 @@ pub fn render(self: *Self) void {
         c.vkResetFences(self.context.device.vkDevice, 1, &fence),
         "Failed to reset fences",
     );
-    _ = try self.context.swapchain.present(self.context.graphicsQueue);
+    const dst: c.VkPipelineStageFlags = c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    const submit_info = zeroInit(c.VkSubmitInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &cmd,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &ias,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = &rcs,
+        .pWaitDstStageMask = &dst,
+    });
+    vk.check(
+        c.vkQueueSubmit(self.context.graphicsQueue, 1, &submit_info, fence),
+        "Failed to submit present queue",
+    );
+    const resize = try self.context.swapchain.present(self.context.graphicsQueue);
+    _ = resize;
 }

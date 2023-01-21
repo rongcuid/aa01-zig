@@ -47,7 +47,7 @@ pub fn init(
         null,
     );
     std.log.debug("Created VkSwapchainKHR [0x{x}]", .{@ptrToInt(swapchain)});
-    const extent = c.VkExtent2D {
+    const extent = c.VkExtent2D{
         .width = width,
         .height = height,
     };
@@ -243,7 +243,7 @@ pub fn acquire(self: *@This()) !struct {
         self.vkSwapchain,
         c.UINT64_MAX,
         self.acquisition_semaphores.items[self.current_frame],
-        self.fences.items[self.current_frame],
+        null,
         &frame,
     );
     var resize = false;
