@@ -8,5 +8,9 @@
 ** [x] Check for physical device features (VK 1.2 and dynamic rendering)
 * [ ] Overall refactor
 ** [x] Merge `VulkanContext` and `VulkanOutput`
-** [ ] Proper wrappers/handles
-* [ ] Swapchain images, frames, semaphores, and fences
+** [x] Proper wrappers/handles -- `vk*` convention
+* [ ] Clear screen
+** [ ] Swapchain images, frames, semaphores, and fences
+** [ ] Separate out render activity
+** [ ] Color attachment
+** [ ] Layout transition
