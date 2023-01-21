@@ -1,7 +1,6 @@
 const c = @import("c.zig");
 const std = @import("std");
 const vk = @import("vk.zig");
-const Swapchain = @import("Swapchain.zig");
 
 const zeroInit = std.mem.zeroInit;
 const assert = std.debug.assert;
@@ -18,7 +17,7 @@ graphicsQueueFamilyIndex: u32,
 graphicsQueue: c.VkQueue,
 
 surface: c.VkSurfaceKHR,
-swapchain: Swapchain,
+swapchain: vk.Swapchain,
 
 commandPool: c.VkCommandPool,
 
@@ -41,7 +40,7 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
     var width: i32 = undefined;
     var height: i32 = undefined;
     c.SDL_GetWindowSize(window, &width, &height);
-    const swapchain = try Swapchain.init(
+    const swapchain = try vk.Swapchain.init(
         alloc,
         physDevice,
         device.vkDevice,

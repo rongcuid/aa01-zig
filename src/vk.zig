@@ -3,6 +3,7 @@ const std = @import("std");
 
 pub const Instance = @import("vk/Instance.zig");
 pub const Device = @import("vk/Device.zig");
+pub const Swapchain = @import("vk/Swapchain.zig");
 
 const zeroInit = std.mem.zeroInit;
 
