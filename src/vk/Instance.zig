@@ -35,6 +35,7 @@ pub fn init(window: *c.SDL_Window) !@This() {
     // TODO: check if validation layer is available
     var layers = try std.BoundedArray([*:0]const u8, 16).init(0);
     try layers.append("VK_LAYER_KHRONOS_validation");
+    try layers.append("VK_LAYER_KHRONOS_synchronization2");
     // Debug callback
     const debugCI = zeroInit(c.VkDebugUtilsMessengerCreateInfoEXT, .{
         .sType = c.VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
@@ -167,6 +168,7 @@ pub fn selectPhysicalDevice(self: *const @This()) !c.VkPhysicalDevice {
     var fba = std.heap.FixedBufferAllocator.init(&buf);
     const physDevs = try enumeratePhysicalDevices(fba.allocator(), self.vkInstance);
     for (physDevs.items) |p| {
+        // Properties
         var props = zeroInit(c.VkPhysicalDeviceProperties2, .{
             .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
             .pNext = null,
@@ -178,9 +180,13 @@ pub fn selectPhysicalDevice(self: *const @This()) !c.VkPhysicalDevice {
         } else {
             std.log.info("[{s}] supports Vulkan 1.2", .{props.properties.deviceName});
         }
+        // Features
+        var sync2 = zeroInit(c.VkPhysicalDeviceSynchronization2FeaturesKHR, .{
+            .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR,
+        });
         var dynamic = zeroInit(c.VkPhysicalDeviceDynamicRenderingFeaturesKHR, .{
             .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
-            .dynamicRendering = 1,
+            .pNext = &sync2,
         });
         var features = zeroInit(c.VkPhysicalDeviceFeatures2, .{
             .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
@@ -192,6 +198,9 @@ pub fn selectPhysicalDevice(self: *const @This()) !c.VkPhysicalDevice {
             continue;
         } else {
             std.log.info("[{s}] supports dynamic rendering", .{props.properties.deviceName});
+        }
+        if (sync2.synchronization2 == 0) {
+            std.log.info("[{s}] does not support synchronization2", .{props.properties.deviceName});
         }
         return p;
     }

@@ -18,6 +18,7 @@ A secret game
 ** [x] Color attachment
 ** [x] Layout transition
 ** [x] Extension function loading
-* [ ] Vulkan-zig
 * [ ] General refactor
+** [x] Enabled sync2
+** [ ] Sync2
 ** [ ] The process of renderer -- render activity -- submit -- present

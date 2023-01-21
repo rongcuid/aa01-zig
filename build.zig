@@ -23,11 +23,10 @@ pub fn build(b: *std.build.Builder) !void {
 
     exe.install();
 
-    // Create a step that generates vk.zig (stored in zig-cache) from the provided vulkan registry.
-    const gen = vkgen.VkGenerateStep.create(b, "vk.xml", "vk.zig");
-    // Add the generated file as package to the final executable
-    exe.addPackage(gen.getPackage("vkz"));
-    
+    // // Create a step that generates vk.zig (stored in zig-cache) from the provided vulkan registry.
+    // const gen = vkgen.VkGenerateStep.create(b, "vk.xml", "vk.zig");
+    // // Add the generated file as package to the final executable
+    // exe.addPackage(gen.getPackage("vkz"));
 
     const run_cmd = exe.run();
     run_cmd.step.dependOn(b.getInstallStep());

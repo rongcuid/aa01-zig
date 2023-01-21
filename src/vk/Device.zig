@@ -27,10 +27,18 @@ pub fn init(
     if (portability) {
         try extensions.append("VK_KHR_portability_subset");
     }
-    const layers = [1][*:0]const u8{"VK_LAYER_KHRONOS_validation"};
-    const dynamic = c.VkPhysicalDeviceDynamicRenderingFeaturesKHR {
-        .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+    const layers = [_][*:0]const u8{
+        "VK_LAYER_KHRONOS_validation",
+        "VK_LAYER_KHRONOS_synchronization2",
+    };
+    var sync2 = c.VkPhysicalDeviceSynchronization2FeaturesKHR{
+        .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR,
         .pNext = null,
+        .synchronization2 = c.VK_TRUE,
+    };
+    const dynamic = c.VkPhysicalDeviceDynamicRenderingFeaturesKHR{
+        .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+        .pNext = &sync2,
         .dynamicRendering = c.VK_TRUE,
     };
     const deviceCI = zeroInit(c.VkDeviceCreateInfo, .{
@@ -46,7 +54,7 @@ pub fn init(
     });
     var device: c.VkDevice = undefined;
     vk.check(c.vkCreateDevice(phys, &deviceCI, null, &device), "Failed to create VkDevice");
-    return @This() {
+    return @This(){
         .vkDevice = device,
     };
 }
