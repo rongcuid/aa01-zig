@@ -62,9 +62,11 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
 }
 pub fn deinit(self: *@This()) void {
     std.log.debug("VulkanContext.deinit()", .{});
+    vk.check(c.vkDeviceWaitIdle(self.device.vkDevice), "Failed to wait device idle");
     self.swapchain.deinit();
     c.vkDestroySurfaceKHR(self.instance.vkInstance, self.surface, null);
     self.surface = undefined;
+
     c.vkDestroyCommandPool(self.device.vkDevice, self.commandPool, null);
     self.device.deinit();
     self.instance.deinit();

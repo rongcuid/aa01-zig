@@ -11,10 +11,13 @@ A secret game
 * [x] Overall refactor - 20230120
 ** [x] Merge `VulkanContext` and `VulkanOutput`
 ** [x] Proper wrappers/handles -- `vk*` convention
-* [ ] Clear screen
+* [x] Clear screen - 20230121
 ** [x] Device enable dynamic rendering
 ** [x] Swapchain images, frames, semaphores, and fences
 ** [x] Separate out render activity
 ** [x] Color attachment
 ** [x] Layout transition
-** [ ] Extension function loading
+** [x] Extension function loading
+* [ ] Vulkan-zig
+* [ ] General refactor
+** [ ] The process of renderer -- render activity -- submit -- present

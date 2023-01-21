@@ -22,8 +22,9 @@ pub fn check(result: c.VkResult, message: []const u8) void {
 
 /// Load a PFN from an instance.
 /// FIXME: currently assumes only one instance!
-pub fn PfnI(comptime pfn: [*:0]const u8) type {
-    const pfn_typename = "PFN_" ++ pfn;
+pub fn PfnI(comptime pfn: @TypeOf(.enum_literal)) type {
+    const pfn_name = @tagName(pfn);
+    const pfn_typename = "PFN_" ++ pfn_name;
     const T = @field(c, pfn_typename);
     const P = @typeInfo(T).Optional.child;
     return struct {
@@ -31,10 +32,10 @@ pub fn PfnI(comptime pfn: [*:0]const u8) type {
         /// Return an instance level pfn
         pub fn get(instance: c.VkInstance) P {
             return ptr orelse {
-                std.log.debug("Loading [{s}]", .{pfn_typename});
+                std.log.debug("Loading [{s}]", .{pfn_name});
                 ptr = @ptrCast(
                     T,
-                    c.vkGetInstanceProcAddr(instance, pfn),
+                    c.vkGetInstanceProcAddr(instance, pfn_name),
                 );
                 return ptr orelse @panic("Pfn not found");
             };
@@ -43,8 +44,9 @@ pub fn PfnI(comptime pfn: [*:0]const u8) type {
 }
 /// Load a PFN from an instance.
 /// FIXME: currently assumes only one device!
-pub fn PfnD(comptime pfn: [*:0]const u8) type {
-    const pfn_typename = "PFN_" ++ pfn;
+pub fn PfnD(comptime pfn: @TypeOf(.enum_literal)) type {
+    const pfn_name = @tagName(pfn);
+    const pfn_typename = "PFN_" ++ pfn_name;
     const T = @field(c, pfn_typename);
     const P = @typeInfo(T).Optional.child;
     return struct {
@@ -55,7 +57,7 @@ pub fn PfnD(comptime pfn: [*:0]const u8) type {
                 std.log.debug("Loading [{s}]", .{pfn_typename});
                 ptr = @ptrCast(
                     T,
-                    c.vkGetDeviceProcAddr(device, pfn),
+                    c.vkGetDeviceProcAddr(device, pfn_name),
                 );
                 return ptr orelse @panic("Pfn not found");
             };

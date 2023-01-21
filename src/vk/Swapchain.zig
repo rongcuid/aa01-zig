@@ -3,6 +3,7 @@
 const c = @import("../c.zig");
 const std = @import("std");
 const vk = @import("../vk.zig");
+const vkz = @import("vkz");
 
 const print = std.debug.print;
 const zeroInit = std.mem.zeroInit;
