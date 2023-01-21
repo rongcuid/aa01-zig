@@ -16,9 +16,14 @@ vkSwapchain: c.VkSwapchainKHR,
 /// References
 vkDevice: c.VkDevice,
 
+extent: c.VkExtent2D,
+
 current_frame: usize,
 images: std.ArrayList(c.VkImage),
 views: std.ArrayList(c.VkImageView),
+acquisition_semaphores: std.ArrayList(c.VkSemaphore),
+render_complete_semaphores: std.ArrayList(c.VkSemaphore),
+fences: std.ArrayList(c.VkFence),
 
 const Self = @This();
 
@@ -42,6 +47,10 @@ pub fn init(
         null,
     );
     std.log.debug("Created VkSwapchainKHR [0x{x}]", .{@ptrToInt(swapchain)});
+    const extent = c.VkExtent2D {
+        .width = width,
+        .height = height,
+    };
     var imageCount: u32 = undefined;
     vk.check(
         c.vkGetSwapchainImagesKHR(device, swapchain, &imageCount, null),
@@ -55,46 +64,45 @@ pub fn init(
     );
     const formats = try getFormats(allocator, phys, surface);
     var views = try std.ArrayList(c.VkImageView).initCapacity(allocator, imageCount);
+    var img_acq_semaphores = try std.ArrayList(c.VkSemaphore).initCapacity(allocator, imageCount);
+    var render_semaphores = try std.ArrayList(c.VkSemaphore).initCapacity(allocator, imageCount);
+    var fences = try std.ArrayList(c.VkFence).initCapacity(allocator, imageCount);
     for (images.items) |img| {
-        const ci = zeroInit(c.VkImageViewCreateInfo, .{
-            .sType = c.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .image = img,
-            .viewType = c.VK_IMAGE_VIEW_TYPE_2D,
-            .format = formats.items[0].format,
-            .components = c.VkComponentMapping{
-                .r = c.VK_COMPONENT_SWIZZLE_IDENTITY,
-                .g = c.VK_COMPONENT_SWIZZLE_IDENTITY,
-                .b = c.VK_COMPONENT_SWIZZLE_IDENTITY,
-                .a = c.VK_COMPONENT_SWIZZLE_IDENTITY,
-            },
-            .subresourceRange = c.VkImageSubresourceRange{
-                .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
-                .baseMipLevel = 0,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = 1,
-            },
-        });
-        var view: c.VkImageView = undefined;
-        vk.check(
-            c.vkCreateImageView(device, &ci, null, &view),
-            "Failed to create VkImageView",
-        );
-        views.appendAssumeCapacity(view);
+        views.appendAssumeCapacity(try createImageView(
+            device,
+            img,
+            formats.items[0].format,
+        ));
+        img_acq_semaphores.appendAssumeCapacity(try createSemaphore(device));
+        render_semaphores.appendAssumeCapacity(try createSemaphore(device));
+        fences.appendAssumeCapacity(try createFence(device));
     }
     return Self{
         .vkDevice = device,
         .vkSurface = surface,
         .vkSwapchain = swapchain,
+        .extent = extent,
         .current_frame = 0,
         .images = images,
         .views = views,
+        .acquisition_semaphores = img_acq_semaphores,
+        .render_complete_semaphores = render_semaphores,
+        .fences = fences,
     };
 }
 
 pub fn deinit(self: *Self) void {
     std.log.debug("Swapchain.deinit()", .{});
     std.log.debug("Destroying VkImageView", .{});
+    for (self.fences.items) |f| {
+        c.vkDestroyFence(self.vkDevice, f, null);
+    }
+    for (self.acquisition_semaphores.items) |s| {
+        c.vkDestroySemaphore(self.vkDevice, s, null);
+    }
+    for (self.render_complete_semaphores.items) |s| {
+        c.vkDestroySemaphore(self.vkDevice, s, null);
+    }
     for (self.views.items) |v| {
         c.vkDestroyImageView(self.vkDevice, v, null);
     }
@@ -168,10 +176,108 @@ fn createSwapchain(
     return swapchain;
 }
 
-pub fn acquire(self: *@This()) !usize {
-    c.vkAcquireNextImageKHR(
-        self.device,
-        self.swapchain,
-        c.UINT64_MAX,
+fn createImageView(
+    device: c.VkDevice,
+    image: c.VkImage,
+    format: c.VkFormat,
+) !c.VkImageView {
+    const ci = zeroInit(c.VkImageViewCreateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = image,
+        .viewType = c.VK_IMAGE_VIEW_TYPE_2D,
+        .format = format,
+        .components = c.VkComponentMapping{
+            .r = c.VK_COMPONENT_SWIZZLE_IDENTITY,
+            .g = c.VK_COMPONENT_SWIZZLE_IDENTITY,
+            .b = c.VK_COMPONENT_SWIZZLE_IDENTITY,
+            .a = c.VK_COMPONENT_SWIZZLE_IDENTITY,
+        },
+        .subresourceRange = c.VkImageSubresourceRange{
+            .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
+    });
+    var view: c.VkImageView = undefined;
+    vk.check(
+        c.vkCreateImageView(device, &ci, null, &view),
+        "Failed to create VkImageView",
     );
+    return view;
+}
+
+fn createSemaphore(device: c.VkDevice) !c.VkSemaphore {
+    const ci = zeroInit(c.VkSemaphoreCreateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+    });
+    var semaphore: c.VkSemaphore = undefined;
+    vk.check(
+        c.vkCreateSemaphore(device, &ci, null, &semaphore),
+        "Failed to create semaphore",
+    );
+    return semaphore;
+}
+
+fn createFence(device: c.VkDevice) !c.VkFence {
+    const ci = zeroInit(c.VkFenceCreateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .flags = c.VK_FENCE_CREATE_SIGNALED_BIT,
+    });
+    var fence: c.VkFence = undefined;
+    vk.check(
+        c.vkCreateFence(device, &ci, null, &fence),
+        "Failed to create fence",
+    );
+    return fence;
+}
+
+pub fn acquire(self: *@This()) !struct {
+    frame: usize,
+    resize: bool,
+} {
+    var frame: u32 = undefined;
+    const err = c.vkAcquireNextImageKHR(
+        self.vkDevice,
+        self.vkSwapchain,
+        c.UINT64_MAX,
+        self.acquisition_semaphores.items[self.current_frame],
+        self.fences.items[self.current_frame],
+        &frame,
+    );
+    var resize = false;
+    switch (err) {
+        c.VK_SUCCESS => resize = false,
+        c.VK_SUBOPTIMAL_KHR => resize = false,
+        c.VK_ERROR_OUT_OF_DATE_KHR => resize = true,
+        else => @panic("Failed to acquire swapchain image"),
+    }
+    self.current_frame = frame;
+    return .{
+        .frame = frame,
+        .resize = resize,
+    };
+}
+
+pub fn present(self: *@This(), queue: c.VkQueue) !bool {
+    var resize = false;
+    const present_info = c.VkPresentInfoKHR{
+        .sType = c.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &self.render_complete_semaphores.items[self.current_frame],
+        .swapchainCount = 1,
+        .pSwapchains = &self.vkSwapchain,
+        .imageIndexCount = 1,
+        .pImageIndices = &self.current_frame,
+    };
+    const err = c.vkQueuePresentKHR(queue, &present_info);
+    switch (err) {
+        c.VK_SUCCESS => {},
+        c.VK_SUBOPTIMAL_KHR => resize = false,
+        c.VK_ERROR_OUT_OF_DATE_KHR => resize = true,
+        else => @panic("Failed to present image"),
+    }
+    self.current_frame = (self.current_frame + 1) % self.images.items.len;
+    return resize;
 }

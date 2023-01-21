@@ -23,12 +23,19 @@ pub fn init(
     var features = zeroInit(c.VkPhysicalDeviceFeatures, .{});
     var extensions = try std.BoundedArray([*:0]const u8, 16).init(0);
     try extensions.append(c.VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    try extensions.append(c.VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
     if (portability) {
         try extensions.append("VK_KHR_portability_subset");
     }
     const layers = [1][*:0]const u8{"VK_LAYER_KHRONOS_validation"};
+    const dynamic = c.VkPhysicalDeviceDynamicRenderingFeaturesKHR {
+        .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+        .pNext = null,
+        .dynamicRendering = c.VK_TRUE,
+    };
     const deviceCI = zeroInit(c.VkDeviceCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .pNext = &dynamic,
         .pQueueCreateInfos = &queueCI,
         .queueCreateInfoCount = 1,
         .pEnabledFeatures = &features,

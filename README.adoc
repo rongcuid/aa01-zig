@@ -12,6 +12,7 @@ A secret game
 ** [x] Merge `VulkanContext` and `VulkanOutput`
 ** [x] Proper wrappers/handles -- `vk*` convention
 * [ ] Clear screen
+** [ ] Device enable dynamic rendering
 ** [ ] Swapchain images, frames, semaphores, and fences
 ** [ ] Separate out render activity
 ** [ ] Color attachment
