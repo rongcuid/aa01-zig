@@ -24,7 +24,7 @@ pub fn init() !Self {
     const context = try VulkanContext.init(std.heap.c_allocator, window);
     const csra = try ClearScreenRenderActivity.init(
         context.device.vkDevice,
-        c.VkClearValue {
+        c.VkClearValue{
             .color = c.VkClearColorValue{ .float32 = .{ 0.1, 0.2, 0.3, 1.0 } },
         },
     );
@@ -63,8 +63,18 @@ pub fn render(self: *Self) void {
     const acquired = try self.context.swapchain.acquire();
     const image = self.context.swapchain.images.items[acquired.frame];
     const view = self.context.swapchain.views.items[acquired.frame];
+    const fence = self.context.swapchain.fences.items[acquired.frame];
     const area = zeroInit(c.VkRect2D, .{
         .extent = self.context.swapchain.extent,
     });
     try self.csra.render(cmd, image, view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    // Submit
+    vk.check(
+        c.vkWaitForFences(self.context.device.vkDevice, 1, &fence, 1, c.UINT64_MAX),
+        "Failed to wait for fences",
+    );
+    vk.check(
+        c.vkResetFences(self.context.device.vkDevice, 1, &fence),
+        "Failed to reset fences",
+    );
 }

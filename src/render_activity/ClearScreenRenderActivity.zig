@@ -48,8 +48,8 @@ pub fn render(
     // Start
     try begin_cmd(cmd);
     try begin_transition(cmd, out_image);
-    c.vkCmdBeginRenderingKHR(cmd, &rendering_info);
-    c.vkCmdEndRenderingKHR(cmd);
+    vk.PfnD("vkCmdBeginRenderingKHR").get(self.device)(cmd, &rendering_info);
+    vk.PfnD("vkCmdEndRenderingKHR").get(self.device)(cmd);
     try end_transition(cmd, out_image, out_layout);
     try end_cmd(cmd);
 }
