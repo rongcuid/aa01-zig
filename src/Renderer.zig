@@ -77,4 +77,5 @@ pub fn render(self: *Self) void {
         c.vkResetFences(self.context.device.vkDevice, 1, &fence),
         "Failed to reset fences",
     );
+    _ = try self.context.swapchain.present(self.context.graphicsQueue);
 }

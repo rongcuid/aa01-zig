@@ -8,7 +8,7 @@ pub fn main() !void {
 
     var r = try Renderer.init();
     defer r.deinit();
-
+    r.render();
     var quit = false;
     while (!quit) {
         var event: c.SDL_Event = undefined;
@@ -20,7 +20,6 @@ pub fn main() !void {
                 else => {},
             }
         }
-        r.render();
         c.SDL_Delay(17);
     }
 }

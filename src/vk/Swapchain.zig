@@ -18,7 +18,7 @@ vkDevice: c.VkDevice,
 
 extent: c.VkExtent2D,
 
-current_frame: usize,
+current_frame: u32,
 images: std.ArrayList(c.VkImage),
 views: std.ArrayList(c.VkImageView),
 acquisition_semaphores: std.ArrayList(c.VkSemaphore),
@@ -262,15 +262,14 @@ pub fn acquire(self: *@This()) !struct {
 
 pub fn present(self: *@This(), queue: c.VkQueue) !bool {
     var resize = false;
-    const present_info = c.VkPresentInfoKHR{
+    const present_info = zeroInit(c.VkPresentInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount = 1,
         .pWaitSemaphores = &self.render_complete_semaphores.items[self.current_frame],
         .swapchainCount = 1,
         .pSwapchains = &self.vkSwapchain,
-        .imageIndexCount = 1,
         .pImageIndices = &self.current_frame,
-    };
+    });
     const err = c.vkQueuePresentKHR(queue, &present_info);
     switch (err) {
         c.VK_SUCCESS => {},
@@ -278,6 +277,6 @@ pub fn present(self: *@This(), queue: c.VkQueue) !bool {
         c.VK_ERROR_OUT_OF_DATE_KHR => resize = true,
         else => @panic("Failed to present image"),
     }
-    self.current_frame = (self.current_frame + 1) % self.images.items.len;
+    self.current_frame = (self.current_frame + 1) % @intCast(u32, self.images.items.len);
     return resize;
 }
