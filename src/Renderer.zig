@@ -42,6 +42,10 @@ pub fn deinit(self: *Self) void {
 
 pub fn render(self: *Self) void {
     vk.check(
+        c.vkQueueWaitIdle(self.context.graphicsQueue),
+        "Failed to wait queue idle",
+    );
+    vk.check(
         c.vkResetCommandPool(
             self.context.device.vkDevice,
             self.context.commandPool,

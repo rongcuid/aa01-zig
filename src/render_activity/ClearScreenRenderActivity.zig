@@ -22,7 +22,6 @@ pub fn deinit() void {}
 
 pub fn render(
     self: *@This(),
-    /// Must be in Initial state
     cmd: c.VkCommandBuffer,
     out_image: c.VkImage,
     out_view: c.VkImageView,
