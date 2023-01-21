@@ -97,9 +97,10 @@ fn checkPortability() !bool {
         "Failed to enumerate instance extensions",
     );
     for (exts.buffer) |prop| {
-        const ext = std.mem.sliceTo(&prop.extensionName, 0);
-        // std.cstr.cmp(&prop.extensionName, c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-        if (std.mem.eql(u8, ext, c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME)) {
+        if (std.cstr.cmp(
+            @ptrCast([*:0]const u8, &prop.extensionName),
+            c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+        ) == 0) {
             return true;
         }
     }
@@ -166,7 +167,6 @@ pub fn selectPhysicalDevice(self: *const @This()) !c.VkPhysicalDevice {
     var fba = std.heap.FixedBufferAllocator.init(&buf);
     const physDevs = try enumeratePhysicalDevices(fba.allocator(), self.vkInstance);
     for (physDevs.items) |p| {
-
         var props = zeroInit(c.VkPhysicalDeviceProperties2, .{
             .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
             .pNext = null,
@@ -213,12 +213,6 @@ fn enumeratePhysicalDevices(alloc: std.mem.Allocator, instance: c.VkInstance) !s
     return phys;
 }
 
-fn getPhysicalDeviceProperties(phys: c.VkPhysicalDevice) c.VkPhysicalDeviceProperties {
-    var props: c.VkPhysicalDeviceProperties = undefined;
-    c.vkGetPhysicalDeviceProperties(phys, &props);
-    return props;
-}
-
 fn physicalDeviceTypeName(props: *const c.VkPhysicalDeviceProperties) []const u8 {
     return switch (props.deviceType) {
         c.VK_PHYSICAL_DEVICE_TYPE_OTHER => "Other",
@@ -228,9 +222,4 @@ fn physicalDeviceTypeName(props: *const c.VkPhysicalDeviceProperties) []const u8
         c.VK_PHYSICAL_DEVICE_TYPE_CPU => "CPU",
         else => unreachable,
     };
-}
-
-fn printPhysicalDeviceInfo(phys: c.VkPhysicalDevice) void {
-    const props = getPhysicalDeviceProperties(phys);
-    std.log.info("Device: [{s}] ({s})", .{ props.deviceName, physicalDeviceTypeName(&props) });
 }
