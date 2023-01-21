@@ -235,8 +235,12 @@ fn createFence(device: c.VkDevice) !c.VkFence {
 }
 
 pub fn acquire(self: *@This()) !struct {
-    frame: usize,
     resize: bool,
+    image: c.VkImage,
+    view: c.VkImageView,
+    semaphore_acq: c.VkSemaphore,
+    semaphore_comp: c.VkSemaphore,
+    fence: c.VkFence,
 } {
     var frame: u32 = undefined;
     const err = c.vkAcquireNextImageKHR(
@@ -256,8 +260,12 @@ pub fn acquire(self: *@This()) !struct {
     }
     self.current_frame = frame;
     return .{
-        .frame = frame,
         .resize = resize,
+        .image = self.images.items[frame],
+        .view = self.views.items[frame],
+        .semaphore_acq = self.acquisition_semaphores.items[frame],
+        .semaphore_comp = self.render_complete_semaphores.items[frame],
+        .fence = self.fences.items[frame],
     };
 }
 

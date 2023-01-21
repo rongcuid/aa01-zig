@@ -61,22 +61,17 @@ pub fn render(self: *Self) void {
         "Failed to allocate command buffer",
     );
     const acquired = try self.context.swapchain.acquire();
-    const image = self.context.swapchain.images.items[acquired.frame];
-    const view = self.context.swapchain.views.items[acquired.frame];
-    const fence = self.context.swapchain.fences.items[acquired.frame];
-    const ias = self.context.swapchain.acquisition_semaphores.items[acquired.frame];
-    const rcs = self.context.swapchain.render_complete_semaphores.items[acquired.frame];
     const area = zeroInit(c.VkRect2D, .{
         .extent = self.context.swapchain.extent,
     });
-    try self.csra.render(cmd, image, view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    try self.csra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
     // Submit
     vk.check(
-        c.vkWaitForFences(self.context.device.vkDevice, 1, &fence, 1, c.UINT64_MAX),
+        c.vkWaitForFences(self.context.device.vkDevice, 1, &acquired.fence, 1, c.UINT64_MAX),
         "Failed to wait for fences",
     );
     vk.check(
-        c.vkResetFences(self.context.device.vkDevice, 1, &fence),
+        c.vkResetFences(self.context.device.vkDevice, 1, &acquired.fence),
         "Failed to reset fences",
     );
     const dst: c.VkPipelineStageFlags = c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -85,13 +80,13 @@ pub fn render(self: *Self) void {
         .commandBufferCount = 1,
         .pCommandBuffers = &cmd,
         .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &ias,
+        .pWaitSemaphores = &acquired.semaphore_acq,
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &rcs,
+        .pSignalSemaphores = &acquired.semaphore_comp,
         .pWaitDstStageMask = &dst,
     });
     vk.check(
-        c.vkQueueSubmit(self.context.graphicsQueue, 1, &submit_info, fence),
+        c.vkQueueSubmit(self.context.graphicsQueue, 1, &submit_info, acquired.fence),
         "Failed to submit present queue",
     );
     const resize = try self.context.swapchain.present(self.context.graphicsQueue);
