@@ -24,6 +24,7 @@ pub fn init(
     var extensions = try std.BoundedArray([*:0]const u8, 16).init(0);
     try extensions.append(c.VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     try extensions.append(c.VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+    try extensions.append(c.VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
     if (portability) {
         try extensions.append("VK_KHR_portability_subset");
     }

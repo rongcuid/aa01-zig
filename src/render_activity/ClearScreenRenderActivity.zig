@@ -47,10 +47,10 @@ pub fn render(
 
     // Start
     try begin_cmd(cmd);
-    try begin_transition(cmd, out_image);
+    try self.begin_transition(cmd, out_image);
     vk.PfnD(.vkCmdBeginRenderingKHR).on(self.device)(cmd, &rendering_info);
     vk.PfnD(.vkCmdEndRenderingKHR).on(self.device)(cmd);
-    try end_transition(cmd, out_image, out_layout);
+    try self.end_transition(cmd, out_image, out_layout);
     try end_cmd(cmd);
 }
 
@@ -63,16 +63,19 @@ fn begin_cmd(cmd: c.VkCommandBuffer) !void {
 }
 
 fn begin_transition(
+    self: *@This(),
     cmd: c.VkCommandBuffer,
     image: c.VkImage,
 ) !void {
-    const image_barrier = zeroInit(c.VkImageMemoryBarrier, .{
-        .sType = c.VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .dstAccessMask = c.VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+    const image_barrier = zeroInit(c.VkImageMemoryBarrier2KHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR,
+        .srcStageMask = c.VK_PIPELINE_STAGE_2_NONE_KHR,
+        .dstStageMask = c.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
+        .dstAccessMask = c.VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT_KHR,
         .oldLayout = c.VK_IMAGE_LAYOUT_UNDEFINED,
-        .newLayout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        .newLayout = c.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
         .image = image,
-        .subresourceRange = c.VkImageSubresourceRange {
+        .subresourceRange = c.VkImageSubresourceRange{
             .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
             .baseMipLevel = 0,
             .levelCount = 1,
@@ -80,35 +83,34 @@ fn begin_transition(
             .layerCount = 1,
         },
     });
-    c.vkCmdPipelineBarrier(
+    const dependency = zeroInit(c.VkDependencyInfoKHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &image_barrier,
+    });
+    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.device)(
         cmd,
-        c.VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-        c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        0,
-        0,
-        null,
-        0,
-        null,
-        1,
-        &image_barrier,
+        &dependency,
     );
 }
 
 fn end_transition(
+    self: *@This(),
     cmd: c.VkCommandBuffer,
     image: c.VkImage,
     out_layout: c.VkImageLayout,
 ) !void {
-    if (out_layout == c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+    if (out_layout == c.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR) {
         return;
     }
-    const image_barrier = zeroInit(c.VkImageMemoryBarrier, .{
-        .sType = c.VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-        .srcAccessMask = c.VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        .oldLayout = c.VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    const image_barrier = zeroInit(c.VkImageMemoryBarrier2KHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR,
+        .srcStageMask = c.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
+        .srcAccessMask = c.VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT_KHR,
+        .oldLayout = c.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
         .newLayout = out_layout,
         .image = image,
-        .subresourceRange = c.VkImageSubresourceRange {
+        .subresourceRange = c.VkImageSubresourceRange{
             .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
             .baseMipLevel = 0,
             .levelCount = 1,
@@ -116,18 +118,12 @@ fn end_transition(
             .layerCount = 1,
         },
     });
-    c.vkCmdPipelineBarrier(
-        cmd,
-        c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        c.VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-        0,
-        0,
-        null,
-        0,
-        null,
-        1,
-        &image_barrier,
-    );
+    const dependency = zeroInit(c.VkDependencyInfoKHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &image_barrier,
+    });
+    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.device)(cmd, &dependency);
 }
 
 fn end_cmd(cmd: c.VkCommandBuffer) !void {

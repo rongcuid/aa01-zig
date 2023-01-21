@@ -53,7 +53,7 @@ pub fn init(window: *c.SDL_Window) !@This() {
         .applicationVersion = c.VK_MAKE_VERSION(0, 1, 0),
         .pEngineName = "Arcland Engine",
         .engineVersion = c.VK_MAKE_VERSION(0, 1, 0),
-        .apiVersion = c.VK_API_VERSION_1_3,
+        .apiVersion = c.VK_API_VERSION_1_2,
     });
     var instanceCI = zeroInit(c.VkInstanceCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
