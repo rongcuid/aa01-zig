@@ -1,10 +1,12 @@
+//! This struct is movable. Do not take a pointer!
+
 const c = @import("../c.zig");
 const std = @import("std");
 const vk = @import("../vk.zig");
 const zeroInit = std.mem.zeroInit;
 
 /// Logical device
-device: c.VkDevice,
+vkDevice: c.VkDevice,
 
 pub fn init(
     phys: c.VkPhysicalDevice,
@@ -21,12 +23,28 @@ pub fn init(
     var features = zeroInit(c.VkPhysicalDeviceFeatures, .{});
     var extensions = try std.BoundedArray([*:0]const u8, 16).init(0);
     try extensions.append(c.VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    try extensions.append(c.VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+    try extensions.append(c.VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
     if (portability) {
         try extensions.append("VK_KHR_portability_subset");
     }
-    const layers = [1][*:0]const u8{"VK_LAYER_KHRONOS_validation"};
+    const layers = [_][*:0]const u8{
+        "VK_LAYER_KHRONOS_validation",
+        "VK_LAYER_KHRONOS_synchronization2",
+    };
+    var sync2 = c.VkPhysicalDeviceSynchronization2FeaturesKHR{
+        .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES_KHR,
+        .pNext = null,
+        .synchronization2 = c.VK_TRUE,
+    };
+    const dynamic = c.VkPhysicalDeviceDynamicRenderingFeaturesKHR{
+        .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR,
+        .pNext = &sync2,
+        .dynamicRendering = c.VK_TRUE,
+    };
     const deviceCI = zeroInit(c.VkDeviceCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+        .pNext = &dynamic,
         .pQueueCreateInfos = &queueCI,
         .queueCreateInfoCount = 1,
         .pEnabledFeatures = &features,
@@ -37,13 +55,13 @@ pub fn init(
     });
     var device: c.VkDevice = undefined;
     vk.check(c.vkCreateDevice(phys, &deviceCI, null, &device), "Failed to create VkDevice");
-    return @This() {
-        .device = device,
+    return @This(){
+        .vkDevice = device,
     };
 }
 
 pub fn deinit(self: *@This()) void {
     std.log.debug("Device.deinit()", .{});
-    c.vkDestroyDevice(self.device, null);
-    self.device = undefined;
+    c.vkDestroyDevice(self.vkDevice, null);
+    self.vkDevice = undefined;
 }

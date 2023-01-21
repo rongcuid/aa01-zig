@@ -1,0 +1,26 @@
+= AA01
+
+A secret game
+
+== Roadmap: Renderer
+
+* [x] Proper Instance creation - 20230120
+** [x] Volk -- Will not work! LSP doesn't autocomplete
+** [x] Portability subset
+** [x] Check for physical device features (VK 1.2 and dynamic rendering)
+* [x] Overall refactor - 20230120
+** [x] Merge `VulkanContext` and `VulkanOutput`
+** [x] Proper wrappers/handles -- `vk*` convention
+* [x] Clear screen - 20230121
+** [x] Device enable dynamic rendering
+** [x] Swapchain images, frames, semaphores, and fences
+** [x] Separate out render activity
+** [x] Color attachment
+** [x] Layout transition
+** [x] Extension function loading
+* [x] Sync2 refactor -- 20230121
+** [x] Enabled sync2
+** [x] Use sync2
+** [x] Separate command pools per frame
+* [ ] General refactor
+** [ ] The process of renderer -- render activity -- submit -- present
