@@ -1,3 +1,5 @@
+//! This struct is movable. Do not take a pointer!
+
 const c = @import("../c.zig");
 const std = @import("std");
 const vk = @import("../vk.zig");

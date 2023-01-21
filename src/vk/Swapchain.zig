@@ -1,3 +1,5 @@
+//! This struct is movable. Do not take a pointer!
+
 const c = @import("../c.zig");
 const std = @import("std");
 const vk = @import("../vk.zig");
@@ -7,9 +9,13 @@ const zeroInit = std.mem.zeroInit;
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
 
-device: c.VkDevice,
-surface: c.VkSurfaceKHR,
-swapchain: c.VkSwapchainKHR,
+/// Owns
+vkSurface: c.VkSurfaceKHR,
+/// References
+vkSwapchain: c.VkSwapchainKHR,
+/// References
+vkDevice: c.VkDevice,
+
 current_frame: usize,
 images: std.ArrayList(c.VkImage),
 views: std.ArrayList(c.VkImageView),
@@ -77,9 +83,9 @@ pub fn init(
         views.appendAssumeCapacity(view);
     }
     return Self{
-        .device = device,
-        .surface = surface,
-        .swapchain = swapchain,
+        .vkDevice = device,
+        .vkSurface = surface,
+        .vkSwapchain = swapchain,
         .current_frame = 0,
         .images = images,
         .views = views,
@@ -90,12 +96,12 @@ pub fn deinit(self: *Self) void {
     std.log.debug("Swapchain.deinit()", .{});
     std.log.debug("Destroying VkImageView", .{});
     for (self.views.items) |v| {
-        c.vkDestroyImageView(self.device, v, null);
+        c.vkDestroyImageView(self.vkDevice, v, null);
     }
     self.views.deinit();
-    std.log.debug("Destroying VkSwapchainKHR [0x{x}]", .{@ptrToInt(self.swapchain)});
-    c.vkDestroySwapchainKHR(self.device, self.swapchain, null);
-    self.swapchain = undefined;
+    std.log.debug("Destroying VkSwapchainKHR [0x{x}]", .{@ptrToInt(self.vkSwapchain)});
+    c.vkDestroySwapchainKHR(self.vkDevice, self.vkSwapchain, null);
+    self.vkSwapchain = undefined;
 }
 
 fn getFormats(allocator: Allocator, phys: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !std.ArrayList(c.VkSurfaceFormatKHR) {
