@@ -74,19 +74,31 @@ pub fn render(self: *Self) void {
         c.vkResetFences(self.context.device.vkDevice, 1, &acquired.fence),
         "Failed to reset fences",
     );
-    const dst: c.VkPipelineStageFlags = c.VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    const submit_info = zeroInit(c.VkSubmitInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .commandBufferCount = 1,
-        .pCommandBuffers = &cmd,
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores = &acquired.semaphore_acq,
-        .signalSemaphoreCount = 1,
-        .pSignalSemaphores = &acquired.semaphore_comp,
-        .pWaitDstStageMask = &dst,
+    const cmd_info = zeroInit(c.VkCommandBufferSubmitInfoKHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO_KHR,
+        .commandBuffer = cmd,
+    });
+    const wait_semaphore_info = zeroInit(c.VkSemaphoreSubmitInfoKHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO_KHR,
+        .semaphore = acquired.semaphore_acq,
+        .stageMask = c.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
+    });
+    const signal_info = zeroInit(c.VkSemaphoreSubmitInfoKHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO_KHR,
+        .semaphore = acquired.semaphore_comp,
+        .stageMask = c.VK_PIPELINE_STAGE_2_NONE_KHR,
+    });
+    const submit_info = zeroInit(c.VkSubmitInfo2KHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO_2_KHR,
+        .waitSemaphoreInfoCount = 1,
+        .pWaitSemaphoreInfos = &wait_semaphore_info,
+        .commandBufferInfoCount = 1,
+        .pCommandBufferInfos = &cmd_info,
+        .signalSemaphoreInfoCount = 1,
+        .pSignalSemaphoreInfos = &signal_info,
     });
     vk.check(
-        c.vkQueueSubmit(self.context.graphicsQueue, 1, &submit_info, acquired.fence),
+        vk.PfnD(.vkQueueSubmit2KHR).on(self.context.device.vkDevice)(self.context.graphicsQueue, 1, &submit_info, acquired.fence),
         "Failed to submit present queue",
     );
     const resize = try self.context.swapchain.present(self.context.graphicsQueue);
