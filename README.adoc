@@ -18,7 +18,9 @@ A secret game
 ** [x] Color attachment
 ** [x] Layout transition
 ** [x] Extension function loading
+* [x] Sync2 refactor -- 20230121
+** [x] Enabled sync2
+** [x] Use sync2
+** [x] Separate command pools per frame
 * [ ] General refactor
-** [x] Enabled sync2 -- 20230121
-** [ ] Use sync2
 ** [ ] The process of renderer -- render activity -- submit -- present

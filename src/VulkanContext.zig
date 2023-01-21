@@ -19,8 +19,6 @@ graphicsQueue: c.VkQueue,
 surface: c.VkSurfaceKHR,
 swapchain: vk.Swapchain,
 
-commandPool: c.VkCommandPool,
-
 ////// Methods
 
 pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
@@ -33,8 +31,6 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
     const device = try vk.Device.init(physDevice, gqIndex, instance.portability);
     var queue: c.VkQueue = undefined;
     c.vkGetDeviceQueue(device.vkDevice, gqIndex, 0, &queue);
-    // Command pool
-    const commandPool = try createCommandPool(device.vkDevice, gqIndex);
     // Surface and Swapchain
     const surface = try getSurface(window, instance.vkInstance);
     var width: i32 = undefined;
@@ -57,7 +53,6 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
         .graphicsQueue = queue,
         .surface = surface,
         .swapchain = swapchain,
-        .commandPool = commandPool,
     };
 }
 pub fn deinit(self: *@This()) void {
@@ -66,8 +61,6 @@ pub fn deinit(self: *@This()) void {
     self.swapchain.deinit();
     c.vkDestroySurfaceKHR(self.instance.vkInstance, self.surface, null);
     self.surface = undefined;
-
-    c.vkDestroyCommandPool(self.device.vkDevice, self.commandPool, null);
     self.device.deinit();
     self.instance.deinit();
 }
@@ -89,18 +82,7 @@ fn getGraphicsQueueFamilyIndex(phys: c.VkPhysicalDevice) !u32 {
 
 ////// Command pool
 
-fn createCommandPool(device: c.VkDevice, queueFamilyIndex: u32) !c.VkCommandPool {
-    const ci = zeroInit(c.VkCommandPoolCreateInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-        .queueFamilyIndex = queueFamilyIndex,
-    });
-    var commandPool: c.VkCommandPool = undefined;
-    vk.check(
-        c.vkCreateCommandPool(device, &ci, null, &commandPool),
-        "Failed to create command pool",
-    );
-    return commandPool;
-}
+
 
 ////// Surface
 

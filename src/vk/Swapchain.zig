@@ -25,6 +25,7 @@ views: std.ArrayList(c.VkImageView),
 acquisition_semaphores: std.ArrayList(c.VkSemaphore),
 render_complete_semaphores: std.ArrayList(c.VkSemaphore),
 fences: std.ArrayList(c.VkFence),
+pools: std.ArrayList(c.VkCommandPool),
 
 const Self = @This();
 
@@ -68,6 +69,7 @@ pub fn init(
     var img_acq_semaphores = try std.ArrayList(c.VkSemaphore).initCapacity(allocator, imageCount);
     var render_semaphores = try std.ArrayList(c.VkSemaphore).initCapacity(allocator, imageCount);
     var fences = try std.ArrayList(c.VkFence).initCapacity(allocator, imageCount);
+    var pools = try std.ArrayList(c.VkCommandPool).initCapacity(allocator, imageCount);
     for (images.items) |img| {
         views.appendAssumeCapacity(try createImageView(
             device,
@@ -77,6 +79,7 @@ pub fn init(
         img_acq_semaphores.appendAssumeCapacity(try createSemaphore(device));
         render_semaphores.appendAssumeCapacity(try createSemaphore(device));
         fences.appendAssumeCapacity(try createFence(device));
+        pools.appendAssumeCapacity(try createCommandPool(device, graphicsQueueFamilyIndex));
     }
     return Self{
         .vkDevice = device,
@@ -89,12 +92,16 @@ pub fn init(
         .acquisition_semaphores = img_acq_semaphores,
         .render_complete_semaphores = render_semaphores,
         .fences = fences,
+        .pools = pools,
     };
 }
 
 pub fn deinit(self: *Self) void {
     std.log.debug("Swapchain.deinit()", .{});
     std.log.debug("Destroying VkImageView", .{});
+    for (self.pools.items) |p| {
+        c.vkDestroyCommandPool(self.vkDevice, p, null);
+    }
     for (self.fences.items) |f| {
         c.vkDestroyFence(self.vkDevice, f, null);
     }
@@ -234,6 +241,19 @@ fn createFence(device: c.VkDevice) !c.VkFence {
     return fence;
 }
 
+fn createCommandPool(device: c.VkDevice, queueFamilyIndex: u32) !c.VkCommandPool {
+    const ci = zeroInit(c.VkCommandPoolCreateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .queueFamilyIndex = queueFamilyIndex,
+    });
+    var commandPool: c.VkCommandPool = undefined;
+    vk.check(
+        c.vkCreateCommandPool(device, &ci, null, &commandPool),
+        "Failed to create command pool",
+    );
+    return commandPool;
+}
+
 pub fn acquire(self: *@This()) !struct {
     resize: bool,
     image: c.VkImage,
@@ -241,6 +261,7 @@ pub fn acquire(self: *@This()) !struct {
     semaphore_acq: c.VkSemaphore,
     semaphore_comp: c.VkSemaphore,
     fence: c.VkFence,
+    pool: c.VkCommandPool,
 } {
     var frame: u32 = undefined;
     const err = c.vkAcquireNextImageKHR(
@@ -266,6 +287,7 @@ pub fn acquire(self: *@This()) !struct {
         .semaphore_acq = self.acquisition_semaphores.items[frame],
         .semaphore_comp = self.render_complete_semaphores.items[frame],
         .fence = self.fences.items[frame],
+        .pool = self.pools.items[frame],
     };
 }
 
@@ -289,3 +311,4 @@ pub fn present(self: *@This(), queue: c.VkQueue) !bool {
     self.current_frame = (self.current_frame + 1) % @intCast(u32, self.images.items.len);
     return resize;
 }
+

@@ -41,35 +41,7 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn render(self: *Self) void {
-    vk.check(
-        c.vkQueueWaitIdle(self.context.graphicsQueue),
-        "Failed to wait queue idle",
-    );
-    vk.check(
-        c.vkResetCommandPool(
-            self.context.device.vkDevice,
-            self.context.commandPool,
-            c.VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT,
-        ),
-        "Failed to reset command pool",
-    );
-    const allocInfo = zeroInit(c.VkCommandBufferAllocateInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .commandPool = self.context.commandPool,
-        .level = c.VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1,
-    });
-    var cmd: c.VkCommandBuffer = undefined;
-    vk.check(
-        c.vkAllocateCommandBuffers(self.context.device.vkDevice, &allocInfo, &cmd),
-        "Failed to allocate command buffer",
-    );
     const acquired = try self.context.swapchain.acquire();
-    const area = zeroInit(c.VkRect2D, .{
-        .extent = self.context.swapchain.extent,
-    });
-    try self.csra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
-    // Submit
     vk.check(
         c.vkWaitForFences(self.context.device.vkDevice, 1, &acquired.fence, 1, c.UINT64_MAX),
         "Failed to wait for fences",
@@ -78,6 +50,26 @@ pub fn render(self: *Self) void {
         c.vkResetFences(self.context.device.vkDevice, 1, &acquired.fence),
         "Failed to reset fences",
     );
+    vk.check(
+        c.vkResetCommandPool(self.context.device.vkDevice, acquired.pool, 0),
+        "Failed to reset command pool",
+    );
+    const allocInfo = zeroInit(c.VkCommandBufferAllocateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool = acquired.pool,
+        .level = c.VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1,
+    });
+    var cmd: c.VkCommandBuffer = undefined;
+    vk.check(
+        c.vkAllocateCommandBuffers(self.context.device.vkDevice, &allocInfo, &cmd),
+        "Failed to allocate command buffer",
+    );
+    const area = zeroInit(c.VkRect2D, .{
+        .extent = self.context.swapchain.extent,
+    });
+    try self.csra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    // Submit
     const cmd_info = zeroInit(c.VkCommandBufferSubmitInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO_KHR,
         .commandBuffer = cmd,
