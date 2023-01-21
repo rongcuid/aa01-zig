@@ -7,6 +7,6 @@
 ** [x] Portability subset
 ** [x] Check for physical device features (VK 1.2 and dynamic rendering)
 * [ ] Overall refactor
-** [ ] Merge `VulkanContext` and `VulkanOutput`
+** [x] Merge `VulkanContext` and `VulkanOutput`
 ** [ ] Proper wrappers/handles
 * [ ] Swapchain images, frames, semaphores, and fences

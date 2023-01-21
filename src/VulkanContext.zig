@@ -1,6 +1,7 @@
 const c = @import("c.zig");
 const std = @import("std");
 const vk = @import("vk.zig");
+const Swapchain = @import("Swapchain.zig");
 
 const zeroInit = std.mem.zeroInit;
 const assert = std.debug.assert;
@@ -16,11 +17,14 @@ graphicsQueueFamilyIndex: u32,
 /// Graphics queue. Currently, assume that graphics queue can present
 graphicsQueue: c.VkQueue,
 
+surface: c.VkSurfaceKHR,
+swapchain: Swapchain,
+
 commandPool: c.VkCommandPool,
 
 ////// Methods
 
-pub fn init(window: *c.SDL_Window) !@This() {
+pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
     const instance = try vk.Instance.init(window);
     // Enumerate and selct physical devices
     const physDevice = try instance.selectPhysicalDevice();
@@ -32,17 +36,36 @@ pub fn init(window: *c.SDL_Window) !@This() {
     c.vkGetDeviceQueue(device.vkDevice, gqIndex, 0, &queue);
     // Command pool
     const commandPool = try createCommandPool(device.vkDevice, gqIndex);
+    // Surface and Swapchain
+    const surface = try getSurface(window, instance.vkInstance);
+    var width: i32 = undefined;
+    var height: i32 = undefined;
+    c.SDL_GetWindowSize(window, &width, &height);
+    const swapchain = try Swapchain.init(
+        alloc,
+        physDevice,
+        device.vkDevice,
+        gqIndex,
+        surface,
+        @intCast(u32, width),
+        @intCast(u32, height),
+    );
     return @This(){
         .instance = instance,
         .physicalDevice = physDevice,
         .device = device,
         .graphicsQueueFamilyIndex = gqIndex,
         .graphicsQueue = queue,
+        .surface = surface,
+        .swapchain = swapchain,
         .commandPool = commandPool,
     };
 }
 pub fn deinit(self: *@This()) void {
     std.log.debug("VulkanContext.deinit()", .{});
+    self.swapchain.deinit();
+    c.vkDestroySurfaceKHR(self.instance.vkInstance, self.surface, null);
+    self.surface = undefined;
     c.vkDestroyCommandPool(self.device.vkDevice, self.commandPool, null);
     self.device.deinit();
     self.instance.deinit();
@@ -76,4 +99,18 @@ fn createCommandPool(device: c.VkDevice, queueFamilyIndex: u32) !c.VkCommandPool
         "Failed to create command pool",
     );
     return commandPool;
+}
+
+////// Surface
+
+fn getSurface(window: *c.SDL_Window, instance: c.VkInstance) !c.VkSurfaceKHR {
+    var surface: c.VkSurfaceKHR = undefined;
+    if (c.SDL_Vulkan_CreateSurface(
+        window,
+        instance,
+        &surface,
+    ) != c.SDL_TRUE) {
+        @panic("Failed to create Vulkan surface");
+    }
+    return surface;
 }
