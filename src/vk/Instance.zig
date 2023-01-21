@@ -74,7 +74,7 @@ pub fn init(window: *c.SDL_Window) !@This() {
     );
     var debugMessenger: c.VkDebugUtilsMessengerEXT = null;
     vk.check(
-        vk.PfnI(.vkCreateDebugUtilsMessengerEXT).get(instance)(instance, &debugCI, null, &debugMessenger),
+        vk.PfnI(.vkCreateDebugUtilsMessengerEXT).on(instance)(instance, &debugCI, null, &debugMessenger),
         "Failed to create VkDebugUtilsMessengerEXT",
     );
     return @This(){
@@ -157,8 +157,8 @@ export fn debugCallback(
 }
 
 /// Get an instance level extension function
-pub fn pfn(self: *const @This(), comptime name: @TypeOf(.enum_literal)) @TypeOf(vk.PfnI(name).get(self.vkInstance)) {
-    return vk.PfnI(name).get(self.vkInstance);
+pub fn pfn(self: *const @This(), comptime name: @TypeOf(.enum_literal)) @TypeOf(vk.PfnI(name).on(self.vkInstance)) {
+    return vk.PfnI(name).on(self.vkInstance);
 }
 
 /// Select the first physical device that fulfills requirements

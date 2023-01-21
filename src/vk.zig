@@ -15,7 +15,7 @@ pub fn check(result: c.VkResult, message: []const u8) void {
             .{ message, result },
             // .{message, @intToEnum(c.VkResult, result)}
         ) catch unreachable;
-        defer std.heap.c_allocator.free(msg);
+        defer std.heap.c_allocator.free(msg)    ;
         @panic(msg);
     }
 }
@@ -30,7 +30,7 @@ pub fn PfnI(comptime pfn: @TypeOf(.enum_literal)) type {
     return struct {
         var ptr: T = null;
         /// Return an instance level pfn
-        pub fn get(instance: c.VkInstance) P {
+        pub fn on(instance: c.VkInstance) P {
             return ptr orelse {
                 std.log.debug("Loading [{s}]", .{pfn_name});
                 ptr = @ptrCast(
@@ -52,7 +52,7 @@ pub fn PfnD(comptime pfn: @TypeOf(.enum_literal)) type {
     return struct {
         var ptr: T = null;
         /// Return an device level pfn
-        pub fn get(device: c.VkDevice) P {
+        pub fn on(device: c.VkDevice) P {
             return ptr orelse {
                 std.log.debug("Loading [{s}]", .{pfn_typename});
                 ptr = @ptrCast(
