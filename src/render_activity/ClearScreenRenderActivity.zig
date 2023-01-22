@@ -54,7 +54,10 @@ pub fn render(
 }
 
 fn begin_cmd(cmd: c.VkCommandBuffer) !void {
-    const begin_info = zeroInit(c.VkCommandBufferBeginInfo, .{ .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT });
+    const begin_info = zeroInit(c.VkCommandBufferBeginInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    });
     vk.check(
         c.vkBeginCommandBuffer(cmd, &begin_info),
         "Failed to begin command buffer",

@@ -24,3 +24,7 @@ A secret game
 ** [x] Separate command pools per frame
 * [ ] General refactor
 ** [ ] The process of renderer -- render activity -- submit -- present
+
+== Roadmap: A Pomodoro Timer (as practice)
+
+* [ ] Nuklear binding

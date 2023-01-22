@@ -16,10 +16,12 @@ pub fn build(b: *std.build.Builder) !void {
     exe.setTarget(target);
     exe.setBuildMode(mode);
 
+    exe.addCSourceFile("src/vma.cpp", &[_][]const u8 {});
+    exe.addIncludePath("src");
     exe.linkLibC();
+    exe.linkLibCpp();
     exe.linkSystemLibrary("SDL2");
     exe.linkSystemLibrary("vulkan");
-    exe.linkSystemLibrary("c");
 
     exe.install();
 
