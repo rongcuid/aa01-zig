@@ -37,7 +37,7 @@ pub fn PfnI(comptime pfn: @TypeOf(.enum_literal)) type {
                 if (use_instance == null) {
                     use_instance = instance;
                 } else if (instance != use_instance) {
-                    @panic("Multiple instances!");
+                    @panic("TODO: Multiple instances!");
                 }
                 ptr = @ptrCast(
                     T,
@@ -56,11 +56,17 @@ pub fn PfnD(comptime pfn: @TypeOf(.enum_literal)) type {
     const T = @field(c, pfn_typename);
     const P = @typeInfo(T).Optional.child;
     return struct {
+        var use_device: c.VkDevice = null;
         var ptr: T = null;
         /// Return an device level pfn
         pub fn on(device: c.VkDevice) P {
             return ptr orelse {
                 std.log.debug("Loading [{s}]", .{pfn_typename});
+                if (use_device == null) {
+                    use_device = device;
+                } else if (device != use_device) {
+                    @panic("TODO: Multiple devices!");
+                }
                 ptr = @ptrCast(
                     T,
                     c.vkGetDeviceProcAddr(device, pfn_name),
