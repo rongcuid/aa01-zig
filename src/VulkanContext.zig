@@ -11,7 +11,7 @@ const Allocator = std.mem.Allocator;
 instance: *vk.Instance,
 physicalDevice: c.VkPhysicalDevice,
 
-device: vk.Device,
+device: *vk.Device,
 graphicsQueueFamilyIndex: u32,
 /// Graphics queue. Currently, assume that graphics queue can present
 graphicsQueue: c.VkQueue,
@@ -28,7 +28,7 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
     std.log.info("Selected physical device: 0x{x}", .{@ptrToInt(physDevice)});
     // Create logical device
     const gqIndex = try getGraphicsQueueFamilyIndex(physDevice);
-    const device = try vk.Device.init(physDevice, gqIndex, instance.portability);
+    const device = try vk.Device.create(alloc, physDevice, gqIndex, instance.portability);
     var queue: c.VkQueue = undefined;
     c.vkGetDeviceQueue(device.vkDevice, gqIndex, 0, &queue);
     // Surface and Swapchain
@@ -61,7 +61,7 @@ pub fn deinit(self: *@This()) void {
     self.swapchain.deinit();
     c.vkDestroySurfaceKHR(self.instance.vkInstance, self.surface, null);
     self.surface = undefined;
-    self.device.deinit();
+    self.device.destroy();
     self.instance.destroy();
 }
 
