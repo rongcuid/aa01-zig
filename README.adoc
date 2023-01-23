@@ -23,6 +23,9 @@ A secret game
 ** [x] Use sync2
 ** [x] Separate command pools per frame
 * [ ] General refactor
+** [ ] Attach dispatch tables to instance and device
+** [ ] Make instance and device immovable
+** [ ] Reference instance and device types
 ** [ ] The process of renderer -- render activity -- submit -- present
 
 == Roadmap: A Pomodoro Timer (as practice)
