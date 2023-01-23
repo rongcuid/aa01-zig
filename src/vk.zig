@@ -2,7 +2,7 @@ const c = @import("c.zig");
 const std = @import("std");
 
 pub const Instance = @import("vk/Instance.zig");
-pub const Device = @import("vk/Device.zig");
+pub const device = @import("vk/device.zig");
 pub const Swapchain = @import("vk/Swapchain.zig");
 
 const zeroInit = std.mem.zeroInit;
@@ -59,17 +59,17 @@ pub fn PfnD(comptime pfn: @TypeOf(.enum_literal)) type {
         var use_device: c.VkDevice = null;
         var ptr: T = null;
         /// Return an device level pfn
-        pub fn on(device: c.VkDevice) P {
+        pub fn on(dev: c.VkDevice) P {
             return ptr orelse {
                 std.log.debug("Loading [{s}]", .{pfn_typename});
                 if (use_device == null) {
-                    use_device = device;
-                } else if (device != use_device) {
+                    use_device = dev;
+                } else if (dev != use_device) {
                     @panic("TODO: Multiple devices!");
                 }
                 ptr = @ptrCast(
                     T,
-                    c.vkGetDeviceProcAddr(device, pfn_name),
+                    c.vkGetDeviceProcAddr(dev, pfn_name),
                 );
                 return ptr orelse @panic("Pfn not found");
             };

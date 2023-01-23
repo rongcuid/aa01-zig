@@ -25,7 +25,7 @@ A secret game
 * [ ] General refactor
 ** [x] Make instance immovable 20230122
 ** [x] Make device immovable 20230122
-** [ ] Dissolve the device struct
+** [x] Dissolve the device struct
 ** [ ] Attach dispatch tables to instance and device
 ** [ ] The process of renderer -- render activity -- submit -- present
 

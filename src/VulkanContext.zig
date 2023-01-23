@@ -11,7 +11,7 @@ const Allocator = std.mem.Allocator;
 instance: *vk.Instance,
 physicalDevice: c.VkPhysicalDevice,
 
-device: *vk.Device,
+device: c.VkDevice,
 graphicsQueueFamilyIndex: u32,
 /// Graphics queue. Currently, assume that graphics queue can present
 graphicsQueue: c.VkQueue,
@@ -28,9 +28,9 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
     std.log.info("Selected physical device: 0x{x}", .{@ptrToInt(physDevice)});
     // Create logical device
     const gqIndex = try getGraphicsQueueFamilyIndex(physDevice);
-    const device = try vk.Device.create(alloc, physDevice, gqIndex, instance.portability);
+    const device = try vk.device.create_default_graphics(physDevice, gqIndex, instance.portability);
     var queue: c.VkQueue = undefined;
-    c.vkGetDeviceQueue(device.vkDevice, gqIndex, 0, &queue);
+    c.vkGetDeviceQueue(device, gqIndex, 0, &queue);
     // Surface and Swapchain
     const surface = try getSurface(window, instance.vkInstance);
     var width: i32 = undefined;
@@ -39,7 +39,7 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
     const swapchain = try vk.Swapchain.init(
         alloc,
         physDevice,
-        device.vkDevice,
+        device,
         gqIndex,
         surface,
         @intCast(u32, width),
@@ -57,11 +57,11 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
 }
 pub fn deinit(self: *@This()) void {
     std.log.debug("VulkanContext.deinit()", .{});
-    vk.check(c.vkDeviceWaitIdle(self.device.vkDevice), "Failed to wait device idle");
+    vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
     self.swapchain.deinit();
     c.vkDestroySurfaceKHR(self.instance.vkInstance, self.surface, null);
     self.surface = undefined;
-    self.device.destroy();
+    c.vkDestroyDevice(self.device, null);
     self.instance.destroy();
 }
 

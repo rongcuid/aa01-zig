@@ -23,7 +23,7 @@ pub fn init() !Self {
     };
     const context = try VulkanContext.init(std.heap.c_allocator, window);
     const csra = try ClearScreenRenderActivity.init(
-        context.device.vkDevice,
+        context.device,
         c.VkClearValue{
             .color = c.VkClearColorValue{ .float32 = .{ 0.1, 0.2, 0.3, 1.0 } },
         },
@@ -43,15 +43,15 @@ pub fn deinit(self: *Self) void {
 pub fn render(self: *Self) void {
     const acquired = try self.context.swapchain.acquire();
     vk.check(
-        c.vkWaitForFences(self.context.device.vkDevice, 1, &acquired.fence, 1, c.UINT64_MAX),
+        c.vkWaitForFences(self.context.device, 1, &acquired.fence, 1, c.UINT64_MAX),
         "Failed to wait for fences",
     );
     vk.check(
-        c.vkResetFences(self.context.device.vkDevice, 1, &acquired.fence),
+        c.vkResetFences(self.context.device, 1, &acquired.fence),
         "Failed to reset fences",
     );
     vk.check(
-        c.vkResetCommandPool(self.context.device.vkDevice, acquired.pool, 0),
+        c.vkResetCommandPool(self.context.device, acquired.pool, 0),
         "Failed to reset command pool",
     );
     const allocInfo = zeroInit(c.VkCommandBufferAllocateInfo, .{
@@ -62,7 +62,7 @@ pub fn render(self: *Self) void {
     });
     var cmd: c.VkCommandBuffer = undefined;
     vk.check(
-        c.vkAllocateCommandBuffers(self.context.device.vkDevice, &allocInfo, &cmd),
+        c.vkAllocateCommandBuffers(self.context.device, &allocInfo, &cmd),
         "Failed to allocate command buffer",
     );
     const area = zeroInit(c.VkRect2D, .{
@@ -94,7 +94,7 @@ pub fn render(self: *Self) void {
         .pSignalSemaphoreInfos = &signal_info,
     });
     vk.check(
-        vk.PfnD(.vkQueueSubmit2KHR).on(self.context.device.vkDevice)(self.context.graphicsQueue, 1, &submit_info, acquired.fence),
+        vk.PfnD(.vkQueueSubmit2KHR).on(self.context.device)(self.context.graphicsQueue, 1, &submit_info, acquired.fence),
         "Failed to submit present queue",
     );
     const resize = try self.context.swapchain.present(self.context.graphicsQueue);
