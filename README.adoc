@@ -2,7 +2,7 @@
 
 A secret game
 
-== Roadmap: Renderer
+== Roadmap: Basics
 
 * [x] Proper Instance creation - 20230120
 ** [x] Volk -- Will not work! LSP doesn't autocomplete
@@ -28,5 +28,14 @@ A secret game
 ** [x] Dissolve the device struct 20230123
 ** [x] Attach dispatch tables to instance and device 20230123
 *** Only disables multiple instances/devices now
-** [ ] The process of renderer -- render activity -- submit -- present
-* [ ] Nuklear renderer
+** [x] The process of renderer -- render activity -- submit -- present
+
+== Roadmap: Basic pipeline
+
+* [ ] `FillTextureRenderer`
+* [ ] Texture upload
+
+== Roadmap: Nuklear
+
+* [ ] Load and process fonts
+* [ ] Initialize and destroy Nuklear

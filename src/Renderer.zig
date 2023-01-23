@@ -35,6 +35,7 @@ pub fn init() !Self {
     };
 }
 pub fn deinit(self: *Self) void {
+    self.csra.deinit();
     self.context.deinit();
     c.SDL_DestroyWindow(self.window);
     self.window = undefined;

@@ -19,7 +19,9 @@ pub fn init(
     };
 }
 
-pub fn deinit() void {}
+pub fn deinit(self: *@This()) void {
+    _ = self;
+}
 
 pub fn render(
     self: *@This(),

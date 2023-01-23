@@ -1,20 +1,31 @@
+//! A simple, debug renderer that just draws a texture
+
 const std = @import("std");
 const c = @import("../c.zig");
 const vk = @import("../vk.zig");
 const zeroInit = std.mem.zeroInit;
 
 device: c.VkDevice,
+texture: c.VkImageView,
+
+pipeline: c.VkPipeline,
 
 pub fn init(
     device: c.VkDevice,
 ) !@This() {
     return @This(){
         .device = device,
+        .texture = c.VK_NULL_HANDLE,
     };
 }
 
 pub fn deinit(self: *@This()) void {
-    _ = self;
+    c.vkDestroyPipeline(self.device, self.pipeline, null);
+}
+
+/// Binds a texture to this renderer
+pub fn bindTexture(self: *@This(), texture: c.VkImageView) !void {
+    self.texture = texture;
 }
 
 pub fn render(
