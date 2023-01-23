@@ -28,7 +28,7 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
     std.log.info("Selected physical device: 0x{x}", .{@ptrToInt(physDevice)});
     // Create logical device
     const gqIndex = try getGraphicsQueueFamilyIndex(physDevice);
-    const device = try vk.device.create_default_graphics(physDevice, gqIndex, instance.portability);
+    const device = try vk.device.create_default_graphics(physDevice, gqIndex);
     var queue: c.VkQueue = undefined;
     c.vkGetDeviceQueue(device, gqIndex, 0, &queue);
     // Surface and Swapchain

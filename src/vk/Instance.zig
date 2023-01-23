@@ -11,8 +11,6 @@ allocator: std.mem.Allocator,
 vkInstance: c.VkInstance,
 /// Owns
 vkDebugMessenger: c.VkDebugUtilsMessengerEXT,
-/// Whether `VK_KHR_portability_subset` is enabled
-portability: bool,
 
 /// Creates a Vulkan instance. Enables all validation and all messages.
 ///
@@ -84,13 +82,12 @@ pub fn create(alloc: std.mem.Allocator, window: *c.SDL_Window) !*@This() {
         .allocator = alloc,
         .vkInstance = instance,
         .vkDebugMessenger = debugMessenger,
-        .portability = portability,
     };
     return p;
 }
 
 /// Checks whether portability subset needs to be enabled
-fn checkPortability() !bool {
+pub fn checkPortability() !bool {
     var count: u32 = undefined;
     vk.check(
         c.vkEnumerateInstanceExtensionProperties(null, &count, null),

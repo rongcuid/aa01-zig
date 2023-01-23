@@ -8,8 +8,8 @@ const zeroInit = std.mem.zeroInit;
 pub fn create_default_graphics(
     phys: c.VkPhysicalDevice,
     graphicsQueueFamilyIndex: u32,
-    portability: bool,
 ) !c.VkDevice {
+    const portability = try vk.Instance.checkPortability();
     const priority: f32 = 1.0;
     const queueCI = zeroInit(c.VkDeviceQueueCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
