@@ -15,7 +15,7 @@ pub fn check(result: c.VkResult, message: []const u8) void {
             .{ message, result },
             // .{message, @intToEnum(c.VkResult, result)}
         ) catch unreachable;
-        defer std.heap.c_allocator.free(msg)    ;
+        defer std.heap.c_allocator.free(msg);
         @panic(msg);
     }
 }
@@ -28,11 +28,17 @@ pub fn PfnI(comptime pfn: @TypeOf(.enum_literal)) type {
     const T = @field(c, pfn_typename);
     const P = @typeInfo(T).Optional.child;
     return struct {
+        var use_instance: c.VkInstance = null;
         var ptr: T = null;
         /// Return an instance level pfn
         pub fn on(instance: c.VkInstance) P {
             return ptr orelse {
                 std.log.debug("Loading [{s}]", .{pfn_name});
+                if (use_instance == null) {
+                    use_instance = instance;
+                } else if (instance != use_instance) {
+                    @panic("Multiple instances!");
+                }
                 ptr = @ptrCast(
                     T,
                     c.vkGetInstanceProcAddr(instance, pfn_name),
