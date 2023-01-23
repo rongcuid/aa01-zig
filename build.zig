@@ -15,9 +15,15 @@ pub fn build(b: *std.build.Builder) !void {
     const exe = b.addExecutable("aa01-zig", "src/main.zig");
     exe.setTarget(target);
     exe.setBuildMode(mode);
-
-    exe.addCSourceFile("src/vma.cpp", &[_][]const u8 {});
     exe.addIncludePath("src");
+    // Vulkan memory allocator
+    exe.addCSourceFile("src/vma.cpp", &[_][]const u8 {});
+    // Nuklear
+    exe.defineCMacro("NK_INCLUDE_FIXED_TYPES", null);
+    exe.defineCMacro("NK_INCLUDE_VERTEX_BUFFER_OUTPUT", null);
+    
+    exe.addCSourceFile("src/nuklear.c", &[_][]const u8 {});
+    // Libraries
     exe.linkLibC();
     exe.linkLibCpp();
     exe.linkSystemLibrary("SDL2");

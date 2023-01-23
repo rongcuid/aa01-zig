@@ -3,6 +3,5 @@ pub usingnamespace @cImport({
     @cInclude("SDL2/SDL_vulkan.h");
     @cInclude("vulkan/vulkan.h");
     @cInclude("vk_mem_alloc.h");
-    // @cDefine("NK_IMPLEMENTATION", {});
-    // @cInclude("nuklear/nuklear.h");
+    @cInclude("nuklear.h");
 });
