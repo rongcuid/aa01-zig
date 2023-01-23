@@ -11,11 +11,11 @@ const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
 
 /// Owns
+vkSurface: c.VkSurfaceKHR,
+/// References
 vkSwapchain: c.VkSwapchainKHR,
 /// References
-device: *vk.Device,
-/// References
-vkSurface: c.VkSurfaceKHR,
+vkDevice: c.VkDevice,
 
 extent: c.VkExtent2D,
 
@@ -31,7 +31,8 @@ const Self = @This();
 
 pub fn init(
     allocator: Allocator,
-    device: *vk.Device,
+    phys: c.VkPhysicalDevice,
+    device: c.VkDevice,
     graphicsQueueFamilyIndex: u32,
     surface: c.VkSurfaceKHR,
     width: u32,
@@ -39,8 +40,8 @@ pub fn init(
 ) !Self {
     const swapchain = try createSwapchain(
         allocator,
-        device.physical_device,
-        device.vkDevice,
+        phys,
+        device,
         surface,
         graphicsQueueFamilyIndex,
         @intCast(u32, width),
@@ -54,16 +55,16 @@ pub fn init(
     };
     var imageCount: u32 = undefined;
     vk.check(
-        c.vkGetSwapchainImagesKHR(device.vkDevice, swapchain, &imageCount, null),
+        c.vkGetSwapchainImagesKHR(device, swapchain, &imageCount, null),
         "Failed to get number of swapchain images",
     );
     var images = try std.ArrayList(c.VkImage).initCapacity(allocator, imageCount);
     images.appendNTimesAssumeCapacity(undefined, imageCount);
     vk.check(
-        c.vkGetSwapchainImagesKHR(device.vkDevice, swapchain, &imageCount, images.items.ptr),
+        c.vkGetSwapchainImagesKHR(device, swapchain, &imageCount, images.items.ptr),
         "Failed to get swapchain images",
     );
-    const formats = try getFormats(allocator, device.physical_device, surface);
+    const formats = try getFormats(allocator, phys, surface);
     var views = try std.ArrayList(c.VkImageView).initCapacity(allocator, imageCount);
     var img_acq_semaphores = try std.ArrayList(c.VkSemaphore).initCapacity(allocator, imageCount);
     var render_semaphores = try std.ArrayList(c.VkSemaphore).initCapacity(allocator, imageCount);
@@ -71,17 +72,17 @@ pub fn init(
     var pools = try std.ArrayList(c.VkCommandPool).initCapacity(allocator, imageCount);
     for (images.items) |img| {
         views.appendAssumeCapacity(try createImageView(
-            device.vkDevice,
+            device,
             img,
             formats.items[0].format,
         ));
-        img_acq_semaphores.appendAssumeCapacity(try createSemaphore(device.vkDevice));
-        render_semaphores.appendAssumeCapacity(try createSemaphore(device.vkDevice));
-        fences.appendAssumeCapacity(try createFence(device.vkDevice));
-        pools.appendAssumeCapacity(try createCommandPool(device.vkDevice, graphicsQueueFamilyIndex));
+        img_acq_semaphores.appendAssumeCapacity(try createSemaphore(device));
+        render_semaphores.appendAssumeCapacity(try createSemaphore(device));
+        fences.appendAssumeCapacity(try createFence(device));
+        pools.appendAssumeCapacity(try createCommandPool(device, graphicsQueueFamilyIndex));
     }
     return Self{
-        .device = device,
+        .vkDevice = device,
         .vkSurface = surface,
         .vkSwapchain = swapchain,
         .extent = extent,
@@ -99,23 +100,23 @@ pub fn deinit(self: *Self) void {
     std.log.debug("Swapchain.deinit()", .{});
     std.log.debug("Destroying VkImageView", .{});
     for (self.pools.items) |p| {
-        c.vkDestroyCommandPool(self.device.vkDevice, p, null);
+        c.vkDestroyCommandPool(self.vkDevice, p, null);
     }
     for (self.fences.items) |f| {
-        c.vkDestroyFence(self.device.vkDevice, f, null);
+        c.vkDestroyFence(self.vkDevice, f, null);
     }
     for (self.acquisition_semaphores.items) |s| {
-        c.vkDestroySemaphore(self.device.vkDevice, s, null);
+        c.vkDestroySemaphore(self.vkDevice, s, null);
     }
     for (self.render_complete_semaphores.items) |s| {
-        c.vkDestroySemaphore(self.device.vkDevice, s, null);
+        c.vkDestroySemaphore(self.vkDevice, s, null);
     }
     for (self.views.items) |v| {
-        c.vkDestroyImageView(self.device.vkDevice, v, null);
+        c.vkDestroyImageView(self.vkDevice, v, null);
     }
     self.views.deinit();
     std.log.debug("Destroying VkSwapchainKHR [0x{x}]", .{@ptrToInt(self.vkSwapchain)});
-    c.vkDestroySwapchainKHR(self.device.vkDevice, self.vkSwapchain, null);
+    c.vkDestroySwapchainKHR(self.vkDevice, self.vkSwapchain, null);
     self.vkSwapchain = undefined;
 }
 
@@ -264,7 +265,7 @@ pub fn acquire(self: *@This()) !struct {
 } {
     var frame: u32 = undefined;
     const err = c.vkAcquireNextImageKHR(
-        self.device.vkDevice,
+        self.vkDevice,
         self.vkSwapchain,
         c.UINT64_MAX,
         self.acquisition_semaphores.items[self.current_frame],

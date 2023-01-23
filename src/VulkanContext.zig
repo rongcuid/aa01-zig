@@ -38,7 +38,8 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
     c.SDL_GetWindowSize(window, &width, &height);
     const swapchain = try vk.Swapchain.init(
         alloc,
-        device,
+        physDevice,
+        device.vkDevice,
         gqIndex,
         surface,
         @intCast(u32, width),
