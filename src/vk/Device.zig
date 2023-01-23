@@ -8,6 +8,8 @@ const zeroInit = std.mem.zeroInit;
 allocator: std.mem.Allocator,
 /// Logical device
 vkDevice: c.VkDevice,
+/// Physical device
+physical_device: c.VkPhysicalDevice,
 
 pub fn create(
     alloc: std.mem.Allocator,
@@ -61,6 +63,7 @@ pub fn create(
     p.* = @This(){
         .allocator = alloc,
         .vkDevice = device,
+        .physical_device = phys,
     };
     return p;
 }
