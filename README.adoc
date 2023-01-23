@@ -25,10 +25,8 @@ A secret game
 * [ ] General refactor
 ** [x] Make instance immovable 20230122
 ** [x] Make device immovable 20230122
-** [x] Dissolve the device struct
-** [ ] Attach dispatch tables to instance and device
+** [x] Dissolve the device struct 20230123
+** [x] Attach dispatch tables to instance and device 20230123
+*** Only disables multiple instances/devices now
 ** [ ] The process of renderer -- render activity -- submit -- present
-
-== Roadmap: A Pomodoro Timer (as practice)
-
-* [ ] Nuklear binding
+* [ ] Nuklear renderer
