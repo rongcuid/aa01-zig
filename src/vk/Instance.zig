@@ -112,7 +112,7 @@ pub fn checkPortability() !bool {
 pub fn destroy(self: *@This()) void {
     std.log.debug("Instance.destroy()", .{});
     if (self.vkDebugMessenger) |m| {
-        self.pfn(.vkDestroyDebugUtilsMessengerEXT)(
+        vk.PfnI(.vkDestroyDebugUtilsMessengerEXT).on(self.vkInstance)(
             self.vkInstance,
             m,
             null,
@@ -157,11 +157,6 @@ export fn debugCallback(
         std.log.debug("{s}", .{msg.items});
     }
     return c.VK_FALSE;
-}
-
-/// Get an instance level extension function
-pub fn pfn(self: *const @This(), comptime name: @TypeOf(.enum_literal)) @TypeOf(vk.PfnI(name).on(self.vkInstance)) {
-    return vk.PfnI(name).on(self.vkInstance);
 }
 
 /// Select the first physical device that fulfills requirements
