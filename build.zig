@@ -28,6 +28,7 @@ pub fn build(b: *std.build.Builder) !void {
     exe.linkLibCpp();
     exe.linkSystemLibrary("SDL2");
     exe.linkSystemLibrary("vulkan");
+    exe.linkSystemLibrary("shaderc");
 
     exe.install();
 

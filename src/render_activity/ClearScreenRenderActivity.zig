@@ -1,6 +1,7 @@
 const std = @import("std");
 const c = @import("../c.zig");
 const vk = @import("../vk.zig");
+
 const zeroInit = std.mem.zeroInit;
 
 /// Clear screen color
