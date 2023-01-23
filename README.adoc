@@ -24,7 +24,7 @@ A secret game
 ** [x] Separate command pools per frame
 * [ ] General refactor
 ** [x] Make instance immovable 20230122
-** [x] Make device immovable 20230122
+** [ ] Make device immovable
 ** [ ] Reference instance and device types
 ** [ ] Attach dispatch tables to instance and device
 ** [ ] The process of renderer -- render activity -- submit -- present

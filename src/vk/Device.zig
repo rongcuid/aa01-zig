@@ -5,18 +5,16 @@ const std = @import("std");
 const vk = @import("../vk.zig");
 const zeroInit = std.mem.zeroInit;
 
-allocator: std.mem.Allocator,
 /// Logical device
 vkDevice: c.VkDevice,
 /// Physical device
 physical_device: c.VkPhysicalDevice,
 
-pub fn create(
-    alloc: std.mem.Allocator,
+pub fn init(
     phys: c.VkPhysicalDevice,
     graphicsQueueFamilyIndex: u32,
     portability: bool,
-) !*@This() {
+) !@This() {
     const priority: f32 = 1.0;
     const queueCI = zeroInit(c.VkDeviceQueueCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -59,18 +57,14 @@ pub fn create(
     });
     var device: c.VkDevice = undefined;
     vk.check(c.vkCreateDevice(phys, &deviceCI, null, &device), "Failed to create VkDevice");
-    var p = try alloc.create(@This());
-    p.* = @This(){
-        .allocator = alloc,
+    return @This(){
         .vkDevice = device,
         .physical_device = phys,
     };
-    return p;
 }
 
-pub fn destroy(self: *@This()) void {
-    std.log.debug("Device.destroy()", .{});
+pub fn deinit(self: *@This()) void {
+    std.log.debug("Device.deinit()", .{});
     c.vkDestroyDevice(self.vkDevice, null);
     self.vkDevice = undefined;
-    self.allocator.destroy(self);
 }
