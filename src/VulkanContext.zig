@@ -8,7 +8,7 @@ const Allocator = std.mem.Allocator;
 
 ////// Fields
 /// Vulkan instance
-instance: vk.Instance,
+instance: *vk.Instance,
 physicalDevice: c.VkPhysicalDevice,
 
 device: vk.Device,
@@ -22,7 +22,7 @@ swapchain: vk.Swapchain,
 ////// Methods
 
 pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
-    const instance = try vk.Instance.init(window);
+    const instance = try vk.Instance.create(alloc, window);
     // Enumerate and selct physical devices
     const physDevice = try instance.selectPhysicalDevice();
     std.log.info("Selected physical device: 0x{x}", .{@ptrToInt(physDevice)});
@@ -62,7 +62,7 @@ pub fn deinit(self: *@This()) void {
     c.vkDestroySurfaceKHR(self.instance.vkInstance, self.surface, null);
     self.surface = undefined;
     self.device.deinit();
-    self.instance.deinit();
+    self.instance.destroy();
 }
 
 ////// Queue family

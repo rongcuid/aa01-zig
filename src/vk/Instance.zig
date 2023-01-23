@@ -1,4 +1,4 @@
-//! This struct is movable. Do not take a pointer!
+//! This struct is immovable!
 
 const c = @import("../c.zig");
 const std = @import("std");
@@ -6,6 +6,7 @@ const vk = @import("../vk.zig");
 
 const zeroInit = std.mem.zeroInit;
 
+allocator: std.mem.Allocator,
 /// Owns
 vkInstance: c.VkInstance,
 /// Owns
@@ -13,11 +14,11 @@ vkDebugMessenger: c.VkDebugUtilsMessengerEXT,
 /// Whether `VK_KHR_portability_subset` is enabled
 portability: bool,
 
-/// Initializes a Vulkan instance. Enables all validation and all messages.
+/// Creates a Vulkan instance. Enables all validation and all messages.
 ///
 ///Currently requires a SDL2 window due to SDL API.
 /// With SDL greater than 2.26.2, `window` can be NULL. Therefore, this argument will be deprecated.
-pub fn init(window: *c.SDL_Window) !@This() {
+pub fn create(alloc: std.mem.Allocator, window: *c.SDL_Window) !*@This() {
     var n_exts: c_uint = undefined;
     var extensions: [16]?[*:0]const u8 = undefined;
     if (c.SDL_Vulkan_GetInstanceExtensions(window, &n_exts, &extensions) != c.SDL_TRUE) {
@@ -78,11 +79,14 @@ pub fn init(window: *c.SDL_Window) !@This() {
         vk.PfnI(.vkCreateDebugUtilsMessengerEXT).on(instance)(instance, &debugCI, null, &debugMessenger),
         "Failed to create VkDebugUtilsMessengerEXT",
     );
-    return @This(){
+    var p = try alloc.create(@This());
+    p.* = @This(){
+        .allocator = alloc,
         .vkInstance = instance,
         .vkDebugMessenger = debugMessenger,
         .portability = portability,
     };
+    return p;
 }
 
 /// Checks whether portability subset needs to be enabled
@@ -108,8 +112,8 @@ fn checkPortability() !bool {
     return false;
 }
 
-pub fn deinit(self: *@This()) void {
-    std.log.debug("Instance.deinit()", .{});
+pub fn destroy(self: *@This()) void {
+    std.log.debug("Instance.destroy()", .{});
     if (self.vkDebugMessenger) |m| {
         self.pfn(.vkDestroyDebugUtilsMessengerEXT)(
             self.vkInstance,
@@ -120,6 +124,7 @@ pub fn deinit(self: *@This()) void {
     self.vkDebugMessenger = undefined;
     c.vkDestroyInstance(self.vkInstance, null);
     self.vkInstance = undefined;
+    self.allocator.destroy(self);
 }
 
 export fn debugCallback(
