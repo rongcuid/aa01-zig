@@ -28,6 +28,15 @@ fences: std.ArrayList(c.VkFence),
 pools: std.ArrayList(c.VkCommandPool),
 
 const Self = @This();
+pub const Frame = struct {
+    resize: bool,
+    image: c.VkImage,
+    view: c.VkImageView,
+    semaphore_acq: c.VkSemaphore,
+    semaphore_comp: c.VkSemaphore,
+    fence: c.VkFence,
+    pool: c.VkCommandPool,
+};
 
 pub fn init(
     allocator: Allocator,
@@ -254,15 +263,7 @@ fn createCommandPool(device: c.VkDevice, queueFamilyIndex: u32) !c.VkCommandPool
     return commandPool;
 }
 
-pub fn acquire(self: *@This()) !struct {
-    resize: bool,
-    image: c.VkImage,
-    view: c.VkImageView,
-    semaphore_acq: c.VkSemaphore,
-    semaphore_comp: c.VkSemaphore,
-    fence: c.VkFence,
-    pool: c.VkCommandPool,
-} {
+pub fn acquire(self: *@This()) !Frame {
     var frame: u32 = undefined;
     const err = c.vkAcquireNextImageKHR(
         self.vkDevice,
@@ -280,7 +281,7 @@ pub fn acquire(self: *@This()) !struct {
         else => @panic("Failed to acquire swapchain image"),
     }
     self.current_frame = frame;
-    return .{
+    return Frame {
         .resize = resize,
         .image = self.images.items[frame],
         .view = self.views.items[frame],
