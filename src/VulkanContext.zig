@@ -67,7 +67,7 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
         @intCast(u32, height),
     );
     const shader_manager = try vk.ShaderManager.init(alloc, device);
-    const texture_manager = try vk.TextureManager.init(alloc, device);
+    const texture_manager = try vk.TextureManager.init(alloc, device, vma);
     return @This(){
         .instance = instance,
         .physicalDevice = physDevice,

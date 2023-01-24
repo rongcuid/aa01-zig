@@ -8,11 +8,13 @@ const TextureMap = std.StringHashMap(c.VkImage);
 
 allocator: std.mem.Allocator,
 device: c.VkDevice,
+vma: c.VmaAllocator,
 
-pub fn init(allocator: std.mem.Allocator, device: c.VkDevice) !@This() {
+pub fn init(allocator: std.mem.Allocator, device: c.VkDevice, vma: c.VmaAllocator) !@This() {
     return @This(){
         .allocator = allocator,
         .device = device,
+        .vma = vma,
     };
 }
 
