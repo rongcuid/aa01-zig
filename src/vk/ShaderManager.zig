@@ -55,6 +55,7 @@ pub fn loadDefault(self: *@This(), path: [:0]const u8, kind: ShaderKind) !c.VkSh
     if (self.shaders.get(path)) |shader| {
         return shader;
     }
+    std.log.info("Compiling shader {s}", .{path});
     const src = try std.fs.cwd().readFileAlloc(self.allocator, path, std.math.maxInt(usize));
     // Compile
     const options = c.shaderc_compile_options_initialize();
