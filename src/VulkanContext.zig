@@ -85,9 +85,12 @@ pub fn deinit(self: *@This()) void {
     std.log.debug("VulkanContext.deinit()", .{});
     vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
     self.shader_manager.deinit();
+    self.texture_manager.deinit();
     self.swapchain.deinit();
     c.vkDestroySurfaceKHR(self.instance.vkInstance, self.surface, null);
     self.surface = undefined;
+    c.vmaDestroyAllocator(self.vma);
+    self.vma = undefined;
     c.vkDestroyDevice(self.device, null);
     self.instance.destroy();
 }

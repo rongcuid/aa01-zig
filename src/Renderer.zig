@@ -24,6 +24,11 @@ pub fn init() !Self {
         return error.SDLInitializationFailed;
     };
     var context = try VulkanContext.init(std.heap.c_allocator, window);
+    _ = try context.texture_manager.loadDefault(
+        context.graphicsQueue,
+        "src/zig.bmp",
+        c.VK_IMAGE_USAGE_SAMPLED_BIT | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+    );
     const csra = try ClearScreenRenderActivity.init(
         context.device,
         c.VkClearValue{
