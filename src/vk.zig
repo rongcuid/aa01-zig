@@ -5,6 +5,7 @@ pub const Instance = @import("vk/Instance.zig");
 pub const device = @import("vk/device.zig");
 pub const Swapchain = @import("vk/Swapchain.zig");
 pub const ShaderManager = @import("vk/ShaderManager.zig");
+pub const TextureManager = @import("vk/TextureManager.zig");
 
 const zeroInit = std.mem.zeroInit;
 

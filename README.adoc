@@ -33,6 +33,7 @@ A secret game
 == Roadmap: Basic pipeline
 
 * [x] `ShaderManager` compiles and loads shaders -- 20230124
+* [x] Initialize VMA
 * [ ] `TextureManager`
 * [ ] `FillTextureRenderer`
 ** [ ] Construct pipeline

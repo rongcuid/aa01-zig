@@ -16,10 +16,13 @@ graphicsQueueFamilyIndex: u32,
 /// Graphics queue. Currently, assume that graphics queue can present
 graphicsQueue: c.VkQueue,
 
+vma: c.VmaAllocator,
+
 surface: c.VkSurfaceKHR,
 swapchain: vk.Swapchain,
 
 shader_manager: vk.ShaderManager,
+texture_manager: vk.TextureManager,
 
 ////// Methods
 
@@ -33,6 +36,22 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
     const device = try vk.device.create_default_graphics(physDevice, gqIndex);
     var queue: c.VkQueue = undefined;
     c.vkGetDeviceQueue(device, gqIndex, 0, &queue);
+    // VMA
+    const vkFuncs = zeroInit(c.VmaVulkanFunctions, .{
+        .vkGetInstanceProcAddr = &c.vkGetInstanceProcAddr,
+        .vkGetDeviceProcAddr = &c.vkGetDeviceProcAddr,
+    });
+    const vmaCI = zeroInit(c.VmaAllocatorCreateInfo, .{
+        .physicalDevice = physDevice,
+        .device = device,
+        .instance = instance.vkInstance,
+        .pVulkanFunctions = &vkFuncs,
+    });
+    var vma: c.VmaAllocator = undefined;
+    vk.check(
+        c.vmaCreateAllocator(&vmaCI, &vma),
+        "Failed to create VMA allocator",
+    );
     // Surface and Swapchain
     const surface = try getSurface(window, instance.vkInstance);
     var width: i32 = undefined;
@@ -48,15 +67,18 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
         @intCast(u32, height),
     );
     const shader_manager = try vk.ShaderManager.init(alloc, device);
+    const texture_manager = try vk.TextureManager.init(alloc, device);
     return @This(){
         .instance = instance,
         .physicalDevice = physDevice,
         .device = device,
+        .vma = vma,
         .graphicsQueueFamilyIndex = gqIndex,
         .graphicsQueue = queue,
         .surface = surface,
         .swapchain = swapchain,
         .shader_manager = shader_manager,
+        .texture_manager = texture_manager,
     };
 }
 pub fn deinit(self: *@This()) void {

@@ -17,16 +17,17 @@ pub fn build(b: *std.build.Builder) !void {
     exe.setBuildMode(mode);
     exe.addIncludePath("src");
     // Vulkan memory allocator
-    exe.addCSourceFile("src/vma.cpp", &[_][]const u8 {});
+    exe.addCSourceFile("src/vma.cpp", &[_][]const u8{});
     // Nuklear
     exe.defineCMacro("NK_INCLUDE_FIXED_TYPES", null);
     exe.defineCMacro("NK_INCLUDE_VERTEX_BUFFER_OUTPUT", null);
-    
-    exe.addCSourceFile("src/nuklear.c", &[_][]const u8 {});
+
+    exe.addCSourceFile("src/nuklear.c", &[_][]const u8{});
     // Libraries
     exe.linkLibC();
     exe.linkLibCpp();
-    exe.linkSystemLibrary("SDL2");
+    exe.linkSystemLibrary("sdl2");
+    exe.linkSystemLibrary("sdl2_image");
     exe.linkSystemLibrary("vulkan");
     exe.linkSystemLibrary("shaderc");
 
