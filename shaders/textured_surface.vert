@@ -7,6 +7,6 @@ layout(location=1)in vec2 uv;
 layout(location=0)out vec2 fragUv;
 
 void main(){
-    gl_Position=position
+    gl_Position.xy=position;
     fragUv=uv;
 }

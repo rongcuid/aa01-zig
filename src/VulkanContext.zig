@@ -2,8 +2,6 @@ const c = @import("c.zig");
 const std = @import("std");
 const vk = @import("vk.zig");
 
-const ShaderManager = @import("ShaderManager.zig");
-
 const zeroInit = std.mem.zeroInit;
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
@@ -21,7 +19,7 @@ graphicsQueue: c.VkQueue,
 surface: c.VkSurfaceKHR,
 swapchain: vk.Swapchain,
 
-shader_manager: ShaderManager,
+shader_manager: vk.ShaderManager,
 
 ////// Methods
 
@@ -49,7 +47,7 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
         @intCast(u32, width),
         @intCast(u32, height),
     );
-    const shader_manager = try ShaderManager.init(alloc, device);
+    const shader_manager = try vk.ShaderManager.init(alloc, device);
     return @This(){
         .instance = instance,
         .physicalDevice = physDevice,
@@ -64,6 +62,7 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
 pub fn deinit(self: *@This()) void {
     std.log.debug("VulkanContext.deinit()", .{});
     vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
+    self.shader_manager.deinit();
     self.swapchain.deinit();
     c.vkDestroySurfaceKHR(self.instance.vkInstance, self.surface, null);
     self.surface = undefined;
@@ -87,8 +86,6 @@ fn getGraphicsQueueFamilyIndex(phys: c.VkPhysicalDevice) !u32 {
 }
 
 ////// Command pool
-
-
 
 ////// Surface
 

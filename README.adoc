@@ -32,6 +32,7 @@ A secret game
 
 == Roadmap: Basic pipeline
 
+* [x] `ShaderManager` compiles and loads shaders
 * [ ] `FillTextureRenderer`
 * [ ] Texture upload
 

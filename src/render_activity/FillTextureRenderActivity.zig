@@ -12,10 +12,16 @@ pipeline: c.VkPipeline,
 
 pub fn init(
     device: c.VkDevice,
+    shader_manager: *vk.ShaderManager,
 ) !@This() {
+    const vert = try shader_manager.loadDefault("shaders/textured_surface.vert", vk.ShaderManager.ShaderKind.vertex);
+    const frag = try shader_manager.loadDefault("shaders/textured_surface.frag", vk.ShaderManager.ShaderKind.fragment);
+    _ = vert;
+    _ = frag;
     return @This(){
         .device = device,
-        .texture = c.VK_NULL_HANDLE,
+        .texture = null,
+        .pipeline = null,
     };
 }
 

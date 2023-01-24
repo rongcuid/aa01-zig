@@ -6,6 +6,7 @@ const vk = @import("vk.zig");
 
 const VulkanContext = @import("VulkanContext.zig");
 const ClearScreenRenderActivity = @import("render_activity/ClearScreenRenderActivity.zig");
+const FillTextureRenderActivity = @import("render_activity/FillTextureRenderActivity.zig");
 
 var alloc = std.heap.c_allocator;
 
@@ -14,6 +15,7 @@ const Self = @This();
 window: *c.SDL_Window,
 context: VulkanContext,
 csra: ClearScreenRenderActivity,
+ftra: FillTextureRenderActivity,
 
 pub fn init() !Self {
     const window = c.SDL_CreateWindow("My Game Window", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, 300, 73, c.SDL_WINDOW_VULKAN) orelse
@@ -21,20 +23,23 @@ pub fn init() !Self {
         c.SDL_Log("Unable to create window: %s", c.SDL_GetError());
         return error.SDLInitializationFailed;
     };
-    const context = try VulkanContext.init(std.heap.c_allocator, window);
+    var context = try VulkanContext.init(std.heap.c_allocator, window);
     const csra = try ClearScreenRenderActivity.init(
         context.device,
         c.VkClearValue{
             .color = c.VkClearColorValue{ .float32 = .{ 0.1, 0.2, 0.3, 1.0 } },
         },
     );
+    const ftra = try FillTextureRenderActivity.init(context.device, &context.shader_manager);
     return Self{
         .window = window,
         .context = context,
         .csra = csra,
+        .ftra = ftra,
     };
 }
 pub fn deinit(self: *Self) void {
+    self.ftra.deinit();
     self.csra.deinit();
     self.context.deinit();
     c.SDL_DestroyWindow(self.window);
