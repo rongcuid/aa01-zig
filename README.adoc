@@ -32,9 +32,11 @@ A secret game
 
 == Roadmap: Basic pipeline
 
-* [x] `ShaderManager` compiles and loads shaders
+* [x] `ShaderManager` compiles and loads shaders -- 20230124
+* [ ] `TextureManager`
 * [ ] `FillTextureRenderer`
-* [ ] Texture upload
+** [ ] Construct pipeline
+** [ ] Load texture
 
 == Roadmap: Nuklear
 
