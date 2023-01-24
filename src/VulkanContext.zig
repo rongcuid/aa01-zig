@@ -2,6 +2,8 @@ const c = @import("c.zig");
 const std = @import("std");
 const vk = @import("vk.zig");
 
+const ShaderManager = @import("ShaderManager.zig");
+
 const zeroInit = std.mem.zeroInit;
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
@@ -18,6 +20,8 @@ graphicsQueue: c.VkQueue,
 
 surface: c.VkSurfaceKHR,
 swapchain: vk.Swapchain,
+
+shader_manager: ShaderManager,
 
 ////// Methods
 
@@ -45,6 +49,7 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
         @intCast(u32, width),
         @intCast(u32, height),
     );
+    const shader_manager = try ShaderManager.init(alloc, device);
     return @This(){
         .instance = instance,
         .physicalDevice = physDevice,
@@ -53,6 +58,7 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
         .graphicsQueue = queue,
         .surface = surface,
         .swapchain = swapchain,
+        .shader_manager = shader_manager,
     };
 }
 pub fn deinit(self: *@This()) void {
