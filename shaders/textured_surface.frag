@@ -9,5 +9,5 @@ layout(location=0)out vec4 outColor;
 
 void main(){
     vec4 texColor=texture(currentTexture,fragUv);
-    outColor=texColor;
+    outColor=texColor/255.;
 }
