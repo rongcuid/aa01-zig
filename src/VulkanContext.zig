@@ -15,6 +15,7 @@ device: c.VkDevice,
 graphicsQueueFamilyIndex: u32,
 /// Graphics queue. Currently, assume that graphics queue can present
 graphicsQueue: c.VkQueue,
+pipeline_cache: c.VkPipelineCache,
 
 vma: c.VmaAllocator,
 
@@ -36,6 +37,19 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
     const device = try vk.device.create_default_graphics(physDevice, gqIndex);
     var queue: c.VkQueue = undefined;
     c.vkGetDeviceQueue(device, gqIndex, 0, &queue);
+    // Pipeline cache
+    var pipeline_cache: c.VkPipelineCache = undefined;
+    const pipelineCacheCI = c.VkPipelineCacheCreateInfo{
+        .sType = c.VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+        .pNext = null,
+        .flags = 0,
+        .initialDataSize = 0,
+        .pInitialData = null,
+    };
+    vk.check(
+        c.vkCreatePipelineCache(device, &pipelineCacheCI, null, &pipeline_cache),
+        "Failed to create pipeline cache",
+    );
     // VMA
     const vkFuncs = zeroInit(c.VmaVulkanFunctions, .{
         .vkGetInstanceProcAddr = &c.vkGetInstanceProcAddr,
@@ -72,6 +86,7 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
         .instance = instance,
         .physicalDevice = physDevice,
         .device = device,
+        .pipeline_cache = pipeline_cache,
         .vma = vma,
         .graphicsQueueFamilyIndex = gqIndex,
         .graphicsQueue = queue,
@@ -91,6 +106,8 @@ pub fn deinit(self: *@This()) void {
     self.surface = undefined;
     c.vmaDestroyAllocator(self.vma);
     self.vma = undefined;
+    c.vkDestroyPipelineCache(self.device, self.pipeline_cache, null);
+    self.pipeline_cache = undefined;
     c.vkDestroyDevice(self.device, null);
     self.instance.destroy();
 }

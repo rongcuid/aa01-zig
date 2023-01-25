@@ -36,7 +36,11 @@ pub fn init() !Self {
             .color = c.VkClearColorValue{ .float32 = .{ 0.1, 0.2, 0.3, 1.0 } },
         },
     );
-    const ftra = try FillTextureRenderActivity.init(context.device, &context.shader_manager);
+    const ftra = try FillTextureRenderActivity.init(
+        context.device,
+        context.pipeline_cache,
+        &context.shader_manager,
+    );
     return Self{
         .window = window,
         .context = context,
