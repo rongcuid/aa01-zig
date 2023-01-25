@@ -14,6 +14,7 @@ cache: c.VkPipelineCache,
 pipeline: c.VkPipeline,
 pipeline_layout: c.VkPipelineLayout,
 descriptor_set_layout: [setLayoutCIs.len]c.VkDescriptorSetLayout,
+descriptor_pool: c.VkDescriptorPool,
 
 pub fn init(
     device: c.VkDevice,
@@ -29,6 +30,24 @@ pub fn init(
         vk.ShaderManager.ShaderKind.fragment,
     );
     const p = try createPipeline(device, cache, vert, frag);
+    // Descriptor sets
+    var descriptor_pool: c.VkDescriptorPool = undefined;
+    const poolSizes = [_]c.VkDescriptorPoolSize{
+        .{
+            .type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 1,
+        },
+    };
+    const poolCI = zeroInit(c.VkDescriptorPoolCreateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .maxSets = 1,
+        .poolSizeCount = @intCast(u32, poolSizes.len),
+        .pPoolSizes = &poolSizes,
+    });
+    vk.check(
+        c.vkCreateDescriptorPool(device, &poolCI, null, &descriptor_pool),
+        "Failed to create descriptor pool",
+    );
     return @This(){
         .device = device,
         .texture = null,
@@ -38,10 +57,12 @@ pub fn init(
         .pipeline = p.pipeline,
         .pipeline_layout = p.pipeline_layout,
         .descriptor_set_layout = p.descriptor_layout,
+        .descriptor_pool = descriptor_pool,
     };
 }
 
 pub fn deinit(self: *@This()) void {
+    c.vkDestroyDescriptorPool(self.device, self.descriptor_pool, null);
     for (self.descriptor_set_layout) |dsl| {
         c.vkDestroyDescriptorSetLayout(self.device, dsl, null);
     }
@@ -160,11 +181,7 @@ pub fn render(
         .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
         .imageView = out_view,
         .imageLayout = c.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
-        // .loadOp = c.VK_ATTACHMENT_LOAD_OP_CLEAR,
         .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
-        // .clearValue = c.VkClearValue{
-        //     .color = c.VkClearColorValue{ .float32 = .{ 1.0, 1.0, 1.0, 1.0 } },
-        // },
     });
     const rendering_info = zeroInit(c.VkRenderingInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
@@ -173,6 +190,26 @@ pub fn render(
         .colorAttachmentCount = 1,
         .pColorAttachments = &color_att_info,
     });
+    // Prepare descriptor sets
+    vk.check(
+        c.vkResetDescriptorPool(self.device, self.descriptor_pool, 0),
+        "Failed to reset descriptor pool",
+    );
+    var descriptor: c.VkDescriptorSet = undefined;
+    const dsAI = zeroInit(c.VkDescriptorSetAllocateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = self.descriptor_pool,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &self.descriptor_set_layout,
+    });
+    vk.check(
+        c.vkAllocateDescriptorSets(self.device, &dsAI, &descriptor),
+        "Failed to allocate descriptor set",
+    );
+    // const write = zeroInit(c.VkWriteDescriptorSet, .{
+
+    // });
+    // c.vkUpdateDescriptorSets(self.device, 1, write, 0, null);
 
     // Start
     try begin_cmd(cmd);
