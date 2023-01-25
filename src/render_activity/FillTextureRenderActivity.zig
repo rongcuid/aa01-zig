@@ -6,7 +6,7 @@ const vk = @import("../vk.zig");
 const zeroInit = std.mem.zeroInit;
 
 device: c.VkDevice,
-texture: c.VkImageView,
+texture_view: c.VkImageView,
 sampler: c.VkSampler,
 
 vert: c.VkShaderModule,
@@ -54,9 +54,9 @@ pub fn init(
     var sampler: c.VkSampler = undefined;
     const samplerCI = zeroInit(c.VkSamplerCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-        .magFilter = c.VK_FILTER_LINEAR,
-        .minFilter = c.VK_FILTER_LINEAR,
-        .mipmapMode = c.VK_SAMPLER_MIPMAP_MODE_LINEAR,
+        .magFilter = c.VK_FILTER_NEAREST,
+        .minFilter = c.VK_FILTER_NEAREST,
+        .mipmapMode = c.VK_SAMPLER_MIPMAP_MODE_NEAREST,
         .addressModeU = c.VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
         .addressModeV = c.VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
         .addressModeW = c.VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
@@ -70,7 +70,7 @@ pub fn init(
     //
     return @This(){
         .device = device,
-        .texture = null,
+        .texture_view = null,
         .sampler = sampler,
         .vert = vert,
         .frag = frag,
@@ -85,6 +85,9 @@ pub fn init(
 
 pub fn deinit(self: *@This()) void {
     vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait for device idle");
+    if (self.texture_view != null) {
+        c.vkDestroyImageView(self.device, self.texture_view, null);
+    }
     c.vkDestroySampler(self.device, self.sampler, null);
     c.vkDestroyDescriptorPool(self.device, self.descriptor_pool, null);
     for (self.descriptor_set_layout) |dsl| {
@@ -105,7 +108,7 @@ fn createPipeline(
     descriptor_layout: [setLayoutCIs.len]c.VkDescriptorSetLayout,
 } {
     // Rendering
-    const color: c.VkFormat = c.VK_FORMAT_R8G8B8A8_UNORM;
+    const color: c.VkFormat = c.VK_FORMAT_B8G8R8A8_UNORM;
     const renderingCI = zeroInit(c.VkPipelineRenderingCreateInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
         .colorAttachmentCount = 1,
@@ -189,7 +192,34 @@ fn createPipeline(
 }
 
 /// Binds a texture to this renderer
-pub fn bindTexture(self: *@This(), texture: c.VkImageView) !void {
+pub fn bindTexture(self: *@This(), texture: c.VkImage) !void {
+    if (self.texture_view != null) {
+        c.vkDestroyImageView(self.device, self.texture_view, null);
+    }
+    var view: c.VkImageView = undefined;
+    const viewCI = zeroInit(c.VkImageViewCreateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        .image = texture,
+        .viewType = c.VK_IMAGE_VIEW_TYPE_2D,
+        .format = c.VK_FORMAT_R8G8B8A8_UINT,
+        .components = c.VkComponentMapping{
+            .r = c.VK_COMPONENT_SWIZZLE_R,
+            .g = c.VK_COMPONENT_SWIZZLE_G,
+            .b = c.VK_COMPONENT_SWIZZLE_B,
+            .a = c.VK_COMPONENT_SWIZZLE_A,
+        },
+        .subresourceRange = c.VkImageSubresourceRange{
+            .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
+    });
+    vk.check(
+        c.vkCreateImageView(self.device, &viewCI, null, &view),
+        "Failed to create image view",
+    );
     // Prepare descriptor sets
     vk.check(
         c.vkResetDescriptorPool(self.device, self.descriptor_pool, 0),
@@ -200,7 +230,7 @@ pub fn bindTexture(self: *@This(), texture: c.VkImageView) !void {
         .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .descriptorPool = self.descriptor_pool,
         .descriptorSetCount = 1,
-        .pSetLayouts = &self.descriptor_set_layout[1],
+        .pSetLayouts = &self.descriptor_set_layout[0],
     });
     vk.check(
         c.vkAllocateDescriptorSets(self.device, &dsAI, &self.texture_descriptor_set),
@@ -208,7 +238,7 @@ pub fn bindTexture(self: *@This(), texture: c.VkImageView) !void {
     );
     const imageInfo = c.VkDescriptorImageInfo{
         .sampler = self.sampler,
-        .imageView = texture,
+        .imageView = view,
         .imageLayout = c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     };
     const write = zeroInit(c.VkWriteDescriptorSet, .{
@@ -220,7 +250,7 @@ pub fn bindTexture(self: *@This(), texture: c.VkImageView) !void {
         .pImageInfo = &imageInfo,
     });
     c.vkUpdateDescriptorSets(self.device, 1, &write, 0, null);
-    self.texture = texture;
+    self.texture_view = view;
 }
 
 pub fn render(
@@ -261,6 +291,17 @@ pub fn render(
             0,
             null,
         );
+        const viewport = c.VkViewport{
+            .x = 0,
+            .y = 0,
+            .width = @intToFloat(f32, out_area.extent.width),
+            .height = @intToFloat(f32, out_area.extent.height),
+            .minDepth = 0,
+            .maxDepth = 1,
+        };
+        c.vkCmdSetViewport(cmd, 0, 1, &viewport);
+        c.vkCmdSetScissor(cmd, 0, 1, &out_area);
+        c.vkCmdDraw(cmd, 3, 1, 0, 0);
     }
     vk.PfnD(.vkCmdEndRenderingKHR).on(self.device)(cmd);
     try self.end_transition(cmd, out_image, out_layout);
@@ -349,38 +390,42 @@ fn end_cmd(cmd: c.VkCommandBuffer) !void {
     );
 }
 
-/// The `Vertex` struct
-const vertexBindingDescriptions = [_]c.VkVertexInputBindingDescription{
-    .{
-        .binding = 0,
-        .stride = @sizeOf(Vertex),
-        .inputRate = c.VK_VERTEX_INPUT_RATE_VERTEX,
-    },
-};
-/// Fields of `Vertex` struct
-const vertexInputAttributeDescriptions = [_]c.VkVertexInputAttributeDescription{
-    .{
-        .location = 0,
-        .binding = 0,
-        .format = c.VK_FORMAT_R32G32_SFLOAT,
-        .offset = @offsetOf(Vertex, "position"),
-    },
-    .{
-        .location = 1,
-        .binding = 0,
-        .format = c.VK_FORMAT_R32G32_SFLOAT,
-        .offset = @offsetOf(Vertex, "uv"),
-    },
-};
+// /// The `Vertex` struct
+// const vertexBindingDescriptions = [_]c.VkVertexInputBindingDescription{
+//     .{
+//         .binding = 0,
+//         .stride = @sizeOf(Vertex),
+//         .inputRate = c.VK_VERTEX_INPUT_RATE_VERTEX,
+//     },
+// };
+// /// Fields of `Vertex` struct
+// const vertexInputAttributeDescriptions = [_]c.VkVertexInputAttributeDescription{
+//     .{
+//         .location = 0,
+//         .binding = 0,
+//         .format = c.VK_FORMAT_R32G32_SFLOAT,
+//         .offset = @offsetOf(Vertex, "position"),
+//     },
+//     .{
+//         .location = 1,
+//         .binding = 0,
+//         .format = c.VK_FORMAT_R32G32_SFLOAT,
+//         .offset = @offsetOf(Vertex, "uv"),
+//     },
+// };
 
 const vertexInputStateCI = c.VkPipelineVertexInputStateCreateInfo{
     .sType = c.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
     .pNext = null,
     .flags = 0,
-    .vertexBindingDescriptionCount = @intCast(u32, vertexBindingDescriptions.len),
-    .pVertexBindingDescriptions = &vertexBindingDescriptions,
-    .vertexAttributeDescriptionCount = @intCast(u32, vertexInputAttributeDescriptions.len),
-    .pVertexAttributeDescriptions = &vertexInputAttributeDescriptions,
+    .vertexBindingDescriptionCount = 0,
+    .pVertexBindingDescriptions = null,
+    .vertexAttributeDescriptionCount = 0,
+    .pVertexAttributeDescriptions = null,
+    // .vertexBindingDescriptionCount = @intCast(u32, vertexBindingDescriptions.len),
+    // .pVertexBindingDescriptions = &vertexBindingDescriptions,
+    // .vertexAttributeDescriptionCount = @intCast(u32, vertexInputAttributeDescriptions.len),
+    // .pVertexAttributeDescriptions = &vertexInputAttributeDescriptions,
 };
 
 const inputAssemblyStateCI = c.VkPipelineInputAssemblyStateCreateInfo{
@@ -436,10 +481,10 @@ const dynamicStateCI = zeroInit(c.VkPipelineDynamicStateCreateInfo, .{
     .pDynamicStates = &dynamicStates,
 });
 
-const Vertex = extern struct {
-    position: [2]f32,
-    uv: [2]f32,
-};
+// const Vertex = extern struct {
+//     position: [2]f32,
+//     uv: [2]f32,
+// };
 
 const bindings = [_]c.VkDescriptorSetLayoutBinding{.{
     .binding = 0,
@@ -449,11 +494,11 @@ const bindings = [_]c.VkDescriptorSetLayoutBinding{.{
     .pImmutableSamplers = null,
 }};
 const setLayoutCIs = [_]c.VkDescriptorSetLayoutCreateInfo{
-    zeroInit(c.VkDescriptorSetLayoutCreateInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-        .bindingCount = 0,
-        .pBindings = null,
-    }),
+    // zeroInit(c.VkDescriptorSetLayoutCreateInfo, .{
+    //     .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    //     .bindingCount = 0,
+    //     .pBindings = null,
+    // }),
     zeroInit(c.VkDescriptorSetLayoutCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
         .bindingCount = @intCast(u32, bindings.len),

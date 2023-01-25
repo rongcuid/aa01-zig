@@ -17,7 +17,6 @@ context: VulkanContext,
 csra: ClearScreenRenderActivity,
 ftra: FillTextureRenderActivity,
 zig_texture: *vk.TextureManager.Texture,
-zig_texture_view: c.VkImageView,
 
 pub fn init() !Self {
     const window = c.SDL_CreateWindow("My Game Window", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, 300, 73, c.SDL_WINDOW_VULKAN) orelse
@@ -31,30 +30,7 @@ pub fn init() !Self {
         c.VK_IMAGE_USAGE_SAMPLED_BIT | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     );
-    var zig_texture_view: c.VkImageView = undefined;
-    const viewCI = zeroInit(c.VkImageViewCreateInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        .image = zig_texture.image,
-        .viewType = c.VK_IMAGE_VIEW_TYPE_2D,
-        .format = c.VK_FORMAT_R8G8B8A8_UINT,
-        .components = c.VkComponentMapping{
-            .r = c.VK_COMPONENT_SWIZZLE_R,
-            .g = c.VK_COMPONENT_SWIZZLE_G,
-            .b = c.VK_COMPONENT_SWIZZLE_B,
-            .a = c.VK_COMPONENT_SWIZZLE_A,
-        },
-        .subresourceRange = c.VkImageSubresourceRange{
-            .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        },
-    });
-    vk.check(
-        c.vkCreateImageView(context.device, &viewCI, null, &zig_texture_view),
-        "Failed to create image view",
-    );
+
     const csra = try ClearScreenRenderActivity.init(
         context.device,
         c.VkClearValue{
@@ -66,18 +42,16 @@ pub fn init() !Self {
         context.pipeline_cache,
         &context.shader_manager,
     );
-    try ftra.bindTexture(zig_texture_view);
+    try ftra.bindTexture(zig_texture.image);
     return Self{
         .window = window,
         .context = context,
         .csra = csra,
         .ftra = ftra,
         .zig_texture = zig_texture,
-        .zig_texture_view = zig_texture_view,
     };
 }
 pub fn deinit(self: *Self) void {
-    c.vkDestroyImageView(self.context.device, self.zig_texture_view, null);
     self.ftra.deinit();
     self.csra.deinit();
     self.context.deinit();

@@ -149,6 +149,7 @@ export fn debugCallback(
     msg.writer().print(" {s}", .{dat.pMessage}) catch @panic("Debug messenger out of memory");
     if (severity & c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT != 0) {
         std.log.err("{s}", .{msg.items});
+        @panic("Validation error");
     } else if (severity & c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT != 0) {
         std.log.warn("{s}", .{msg.items});
     } else if (severity & c.VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT != 0) {
