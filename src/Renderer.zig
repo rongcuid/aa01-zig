@@ -62,7 +62,7 @@ pub fn render(self: *Self) !void {
     const acquired = try self.context.swapchain.acquire();
     // Prepare structures
     try self.beginRender(&acquired);
-    var cmd: [2]c.VkCommandBuffer = undefined;
+    var cmds: [2]c.VkCommandBuffer = undefined;
     const allocInfo = zeroInit(c.VkCommandBufferAllocateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = acquired.pool,
@@ -70,16 +70,16 @@ pub fn render(self: *Self) !void {
         .commandBufferCount = 2,
     });
     vk.check(
-        c.vkAllocateCommandBuffers(self.context.device, &allocInfo, &cmd),
+        c.vkAllocateCommandBuffers(self.context.device, &allocInfo, &cmds),
         "Failed to allocate command buffer",
     );
     const area = zeroInit(c.VkRect2D, .{
         .extent = self.context.swapchain.extent,
     });
     // Run renderers
-    try self.csra.render(cmd[0], acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    try self.csra.render(cmds[0], acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
     // Submit and present
-    try self.submit(&acquired, cmd[0]);
+    try self.submit(&acquired, cmds[0..1]);
     const resize = try self.context.swapchain.present(self.context.graphicsQueue);
     // TODO: resize swapchain
     _ = resize;
@@ -100,14 +100,16 @@ fn beginRender(self: *Self, acquired: *const vk.Swapchain.Frame) !void {
     );
 }
 
-fn submit(self: *Self, acquired: *const vk.Swapchain.Frame, cmd: c.VkCommandBuffer) !void {
+fn submit(self: *Self, acquired: *const vk.Swapchain.Frame, cmds: []c.VkCommandBuffer) !void {
     // Submit
-    const cmd_info = c.VkCommandBufferSubmitInfoKHR{
-        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO_KHR,
-        .pNext = null,
-        .commandBuffer = cmd,
-        .deviceMask = 0,
-    };
+    var cmd_info = try std.BoundedArray(c.VkCommandBufferSubmitInfoKHR, 128).init(0);
+    for (cmds) |cmd| {
+        cmd_info.appendAssumeCapacity(zeroInit(c.VkCommandBufferSubmitInfoKHR, .{
+            .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO_KHR,
+            .commandBuffer = cmd,
+        }));
+    }
+
     const wait_semaphore_info = zeroInit(c.VkSemaphoreSubmitInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO_KHR,
         .semaphore = acquired.semaphore_acq,
@@ -122,10 +124,8 @@ fn submit(self: *Self, acquired: *const vk.Swapchain.Frame, cmd: c.VkCommandBuff
         .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO_2_KHR,
         .waitSemaphoreInfoCount = 1,
         .pWaitSemaphoreInfos = &wait_semaphore_info,
-        // .commandBufferInfoCount = @intCast(u32, cmd_info.len),
-        // .pCommandBufferInfos = &cmd_info.buffer,
-        .commandBufferInfoCount = 1,
-        .pCommandBufferInfos = &cmd_info,
+        .commandBufferInfoCount = @intCast(u32, cmd_info.len),
+        .pCommandBufferInfos = &cmd_info.buffer,
         .signalSemaphoreInfoCount = 1,
         .pSignalSemaphoreInfos = &signal_info,
     });
