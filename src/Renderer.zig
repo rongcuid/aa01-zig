@@ -62,12 +62,12 @@ pub fn render(self: *Self) !void {
     const acquired = try self.context.swapchain.acquire();
     // Prepare structures
     try self.beginRender(&acquired);
-    var cmd: c.VkCommandBuffer = undefined;
+    var cmd: [2]c.VkCommandBuffer = undefined;
     const allocInfo = zeroInit(c.VkCommandBufferAllocateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = acquired.pool,
         .level = c.VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 1,
+        .commandBufferCount = 2,
     });
     vk.check(
         c.vkAllocateCommandBuffers(self.context.device, &allocInfo, &cmd),
@@ -77,9 +77,9 @@ pub fn render(self: *Self) !void {
         .extent = self.context.swapchain.extent,
     });
     // Run renderers
-    try self.csra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    try self.csra.render(cmd[0], acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
     // Submit and present
-    try self.submit(&acquired, cmd);
+    try self.submit(&acquired, cmd[0]);
     const resize = try self.context.swapchain.present(self.context.graphicsQueue);
     // TODO: resize swapchain
     _ = resize;
