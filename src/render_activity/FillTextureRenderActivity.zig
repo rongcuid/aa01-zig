@@ -7,7 +7,6 @@ const zeroInit = std.mem.zeroInit;
 
 device: c.VkDevice,
 texture: c.VkImageView,
-view: c.VkImageView,
 sampler: c.VkSampler,
 
 vert: c.VkShaderModule,
@@ -16,6 +15,7 @@ cache: c.VkPipelineCache,
 pipeline: c.VkPipeline,
 pipeline_layout: c.VkPipelineLayout,
 descriptor_set_layout: [setLayoutCIs.len]c.VkDescriptorSetLayout,
+texture_descriptor_set = c.VkDescriptorSet,
 descriptor_pool: c.VkDescriptorPool,
 
 pub fn init(
@@ -71,7 +71,6 @@ pub fn init(
     return @This(){
         .device = device,
         .texture = null,
-        .view = null,
         .sampler = sampler,
         .vert = vert,
         .frag = frag,
@@ -79,6 +78,7 @@ pub fn init(
         .pipeline = p.pipeline,
         .pipeline_layout = p.pipeline_layout,
         .descriptor_set_layout = p.descriptor_layout,
+        .texture_descriptor_set = null,
         .descriptor_pool = descriptor_pool,
     };
 }
@@ -190,6 +190,36 @@ fn createPipeline(
 
 /// Binds a texture to this renderer
 pub fn bindTexture(self: *@This(), texture: c.VkImageView) !void {
+    // Prepare descriptor sets
+    vk.check(
+        c.vkResetDescriptorPool(self.device, self.descriptor_pool, 0),
+        "Failed to reset descriptor pool",
+    );
+    //
+    const dsAI = zeroInit(c.VkDescriptorSetAllocateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = self.descriptor_pool,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &self.descriptor_set_layout,
+    });
+    vk.check(
+        c.vkAllocateDescriptorSets(self.device, &dsAI, &self.texture_descriptor_set),
+        "Failed to allocate descriptor set",
+    );
+    const imageInfo = c.VkDescriptorImageInfo{
+        .sampler = self.sampler,
+        .imageView = texture,
+        .imageLayout = c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    };
+    const write = zeroInit(c.VkWriteDescriptorSet, .{
+        .sType = c.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = self.texture_descriptor_set,
+        .dstBinding = 0,
+        .descriptorCount = 1,
+        .descriptorType = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .pImageInfo = &imageInfo,
+    });
+    c.vkUpdateDescriptorSets(self.device, 1, &write, 0, null);
     self.texture = texture;
 }
 
@@ -214,20 +244,23 @@ pub fn render(
         .colorAttachmentCount = 1,
         .pColorAttachments = &color_att_info,
     });
-    // Prepare descriptor sets
-    vk.check(
-        c.vkResetDescriptorPool(self.device, self.descriptor_pool, 0),
-        "Failed to reset descriptor pool",
-    );
 
     // Start
     try begin_cmd(cmd);
     try self.begin_transition(cmd, out_image);
     vk.PfnD(.vkCmdBeginRenderingKHR).on(self.device)(cmd, &rendering_info);
     c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline);
-    if (self.view != null) {
-        const ds = try self.getTextureDescriptorSet();
-        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline_layout, 0, 1, &ds, 0, null);
+    if (self.texture_descriptor_set != null) {
+        c.vkCmdBindDescriptorSets(
+            cmd,
+            c.VK_PIPELINE_BIND_POINT_GRAPHICS,
+            self.texture_descriptor_set,
+            0,
+            1,
+            &ds,
+            0,
+            null,
+        );
     }
     vk.PfnD(.vkCmdEndRenderingKHR).on(self.device)(cmd);
     try self.end_transition(cmd, out_image, out_layout);
@@ -314,35 +347,6 @@ fn end_cmd(cmd: c.VkCommandBuffer) !void {
         c.vkEndCommandBuffer(cmd),
         "Failed to end command buffer",
     );
-}
-
-fn getTextureDescriptorSet(self: *@This()) !c.VkDescriptorSet {
-    var descriptor: c.VkDescriptorSet = undefined;
-    const dsAI = zeroInit(c.VkDescriptorSetAllocateInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = self.descriptor_pool,
-        .descriptorSetCount = 1,
-        .pSetLayouts = &self.descriptor_set_layout,
-    });
-    vk.check(
-        c.vkAllocateDescriptorSets(self.device, &dsAI, &descriptor),
-        "Failed to allocate descriptor set",
-    );
-    const imageInfo = c.VkDescriptorImageInfo{
-        .sampler = self.sampler,
-        .imageView = self.view,
-        .imageLayout = c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-    };
-    const write = zeroInit(c.VkWriteDescriptorSet, .{
-        .sType = c.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-        .dstSet = descriptor,
-        .dstBinding = 0,
-        .descriptorCount = 1,
-        .descriptorType = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-        .pImageInfo = &imageInfo,
-    });
-    c.vkUpdateDescriptorSets(self.device, 1, &write, 0, null);
-    return descriptor;
 }
 
 /// The `Vertex` struct
