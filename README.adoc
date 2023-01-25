@@ -34,9 +34,9 @@ A secret game
 
 * [x] `ShaderManager` compiles and loads shaders -- 20230124
 * [x] Initialize VMA
-* [ ] `TextureManager`
+* [x] `TextureManager`
 * [ ] `FillTextureRenderer`
-** [ ] Construct pipeline
+** [x] Construct pipeline
 ** [ ] Load texture
 
 == Roadmap: Nuklear
