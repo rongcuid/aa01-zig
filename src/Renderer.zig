@@ -16,6 +16,7 @@ window: *c.SDL_Window,
 context: VulkanContext,
 csra: ClearScreenRenderActivity,
 ftra: FillTextureRenderActivity,
+zig_texture: *vk.TextureManager.Texture,
 
 pub fn init() !Self {
     const window = c.SDL_CreateWindow("My Game Window", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, 300, 73, c.SDL_WINDOW_VULKAN) orelse
@@ -24,7 +25,7 @@ pub fn init() !Self {
         return error.SDLInitializationFailed;
     };
     var context = try VulkanContext.init(std.heap.c_allocator, window);
-    _ = try context.texture_manager.loadDefault(
+    const zig_texture = try context.texture_manager.loadDefault(
         "src/zig.bmp",
         c.VK_IMAGE_USAGE_SAMPLED_BIT | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -41,6 +42,7 @@ pub fn init() !Self {
         .context = context,
         .csra = csra,
         .ftra = ftra,
+        .zig_texture = zig_texture,
     };
 }
 pub fn deinit(self: *Self) void {
