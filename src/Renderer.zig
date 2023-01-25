@@ -77,6 +77,7 @@ pub fn init() !Self {
     };
 }
 pub fn deinit(self: *Self) void {
+    c.vkDestroyImageView(self.context.device, self.zig_texture_view, null);
     self.ftra.deinit();
     self.csra.deinit();
     self.context.deinit();

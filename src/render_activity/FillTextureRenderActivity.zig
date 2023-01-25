@@ -200,7 +200,7 @@ pub fn bindTexture(self: *@This(), texture: c.VkImageView) !void {
         .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
         .descriptorPool = self.descriptor_pool,
         .descriptorSetCount = 1,
-        .pSetLayouts = &self.descriptor_set_layout,
+        .pSetLayouts = &self.descriptor_set_layout[1],
     });
     vk.check(
         c.vkAllocateDescriptorSets(self.device, &dsAI, &self.texture_descriptor_set),
