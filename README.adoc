@@ -37,6 +37,7 @@ A secret game
 * [x] `TextureManager`
 * [ ] `FillTextureRenderer`
 ** [x] Construct pipeline
+** [x] Empty render
 ** [ ] Load texture
 
 == Roadmap: Nuklear

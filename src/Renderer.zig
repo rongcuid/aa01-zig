@@ -67,7 +67,7 @@ pub fn render(self: *Self) !void {
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = acquired.pool,
         .level = c.VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = 2,
+        .commandBufferCount = @intCast(u32, cmds.len),
     });
     vk.check(
         c.vkAllocateCommandBuffers(self.context.device, &allocInfo, &cmds),
@@ -78,8 +78,9 @@ pub fn render(self: *Self) !void {
     });
     // Run renderers
     try self.csra.render(cmds[0], acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    try self.ftra.render(cmds[1], acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
     // Submit and present
-    try self.submit(&acquired, cmds[0..1]);
+    try self.submit(&acquired, &cmds);
     const resize = try self.context.swapchain.present(self.context.graphicsQueue);
     // TODO: resize swapchain
     _ = resize;
