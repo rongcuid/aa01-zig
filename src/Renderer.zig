@@ -57,18 +57,18 @@ pub fn deinit(self: *Self) void {
     self.window = undefined;
 }
 
-pub fn render(self: *Self) void {
+pub fn render(self: *Self) !void {
     // Acquire swapchain image
     const acquired = try self.context.swapchain.acquire();
     // Prepare structures
     try self.beginRender(&acquired);
+    var cmd: c.VkCommandBuffer = undefined;
     const allocInfo = zeroInit(c.VkCommandBufferAllocateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = acquired.pool,
         .level = c.VK_COMMAND_BUFFER_LEVEL_PRIMARY,
         .commandBufferCount = 1,
     });
-    var cmd: c.VkCommandBuffer = undefined;
     vk.check(
         c.vkAllocateCommandBuffers(self.context.device, &allocInfo, &cmd),
         "Failed to allocate command buffer",
@@ -102,10 +102,12 @@ fn beginRender(self: *Self, acquired: *const vk.Swapchain.Frame) !void {
 
 fn submit(self: *Self, acquired: *const vk.Swapchain.Frame, cmd: c.VkCommandBuffer) !void {
     // Submit
-    const cmd_info = zeroInit(c.VkCommandBufferSubmitInfoKHR, .{
+    const cmd_info = c.VkCommandBufferSubmitInfoKHR{
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO_KHR,
+        .pNext = null,
         .commandBuffer = cmd,
-    });
+        .deviceMask = 0,
+    };
     const wait_semaphore_info = zeroInit(c.VkSemaphoreSubmitInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO_KHR,
         .semaphore = acquired.semaphore_acq,
@@ -120,6 +122,8 @@ fn submit(self: *Self, acquired: *const vk.Swapchain.Frame, cmd: c.VkCommandBuff
         .sType = c.VK_STRUCTURE_TYPE_SUBMIT_INFO_2_KHR,
         .waitSemaphoreInfoCount = 1,
         .pWaitSemaphoreInfos = &wait_semaphore_info,
+        // .commandBufferInfoCount = @intCast(u32, cmd_info.len),
+        // .pCommandBufferInfos = &cmd_info.buffer,
         .commandBufferInfoCount = 1,
         .pCommandBufferInfos = &cmd_info,
         .signalSemaphoreInfoCount = 1,

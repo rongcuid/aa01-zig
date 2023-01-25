@@ -9,18 +9,18 @@ pub fn main() !void {
     var r = try Renderer.init();
     defer r.deinit();
     var quit = false;
-    
+
     while (!quit) {
         var event: c.SDL_Event = undefined;
         while (c.SDL_PollEvent(&event) != 0) {
-            switch (event.@"type") {
+            switch (event.type) {
                 c.SDL_QUIT => {
                     quit = true;
                 },
                 else => {},
             }
         }
-        r.render();
+        try r.render();
         c.SDL_Delay(17);
     }
 }
