@@ -15,7 +15,7 @@ cache: c.VkPipelineCache,
 pipeline: c.VkPipeline,
 pipeline_layout: c.VkPipelineLayout,
 descriptor_set_layout: [setLayoutCIs.len]c.VkDescriptorSetLayout,
-texture_descriptor_set = c.VkDescriptorSet,
+texture_descriptor_set: c.VkDescriptorSet,
 descriptor_pool: c.VkDescriptorPool,
 
 pub fn init(
@@ -254,10 +254,10 @@ pub fn render(
         c.vkCmdBindDescriptorSets(
             cmd,
             c.VK_PIPELINE_BIND_POINT_GRAPHICS,
-            self.texture_descriptor_set,
+            self.pipeline_layout,
             0,
             1,
-            &ds,
+            &self.texture_descriptor_set,
             0,
             null,
         );
