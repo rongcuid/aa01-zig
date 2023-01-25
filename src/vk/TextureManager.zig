@@ -244,8 +244,8 @@ fn recordUploadTransitionIn(self: *const @This(), cmd: c.VkCommandBuffer, textur
         c.VK_ACCESS_2_TRANSFER_WRITE_BIT_KHR,
         c.VK_IMAGE_LAYOUT_UNDEFINED,
         c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        0,
-        0,
+        self.transfer_qfi,
+        self.graphics_qfi,
     );
 }
 
@@ -259,8 +259,8 @@ fn recordUploadTransitionOut(self: *const @This(), cmd: c.VkCommandBuffer, textu
         0,
         c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         dst_layout,
-        0,
-        0,
+        self.transfer_qfi,
+        self.graphics_qfi,
     );
 }
 
