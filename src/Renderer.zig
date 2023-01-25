@@ -25,9 +25,9 @@ pub fn init() !Self {
     };
     var context = try VulkanContext.init(std.heap.c_allocator, window);
     _ = try context.texture_manager.loadDefault(
-        context.graphicsQueue,
         "src/zig.bmp",
         c.VK_IMAGE_USAGE_SAMPLED_BIT | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+        c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     );
     const csra = try ClearScreenRenderActivity.init(
         context.device,
