@@ -62,7 +62,7 @@ pub fn destroy(self: *@This()) void {
 }
 
 /// Load a default R8G8B8A8 image
-pub fn loadDefault(
+pub fn loadFileRgbaUint(
     self: *@This(),
     path: [:0]const u8,
     usage: c.VkImageUsageFlags,
@@ -86,24 +86,14 @@ pub fn loadDefault(
     }
     defer c.SDL_FreeSurface(surface_rgba);
 
-    const imageCI = zeroInit(c.VkImageCreateInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-        .imageType = c.VK_IMAGE_TYPE_2D,
-        .format = c.VK_FORMAT_R8G8B8A8_UINT,
-        .extent = c.VkExtent3D{
-            .width = @intCast(u32, surface_rgba.*.w),
-            .height = @intCast(u32, surface_rgba.*.h),
-            .depth = 1,
-        },
-        .mipLevels = 1,
-        .arrayLayers = 1,
-        .samples = c.VK_SAMPLE_COUNT_1_BIT,
-        .tiling = c.VK_IMAGE_TILING_OPTIMAL,
-        .usage = usage | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-        .sharingMode = c.VK_SHARING_MODE_EXCLUSIVE,
-        .initialLayout = c.VK_IMAGE_LAYOUT_UNDEFINED,
-    });
-    var texture = try vk.Texture.create(self.allocator, self.device, self.vma, &imageCI);
+    var texture = try vk.Texture.createDefault(
+        self.allocator,
+        self.device,
+        self.vma,
+        @intCast(u32, surface_rgba.*.w),
+        @intCast(u32, surface_rgba.*.h),
+        usage,
+    );
     var cmd: c.VkCommandBuffer = undefined;
     const cmdAI = c.VkCommandBufferAllocateInfo{
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,

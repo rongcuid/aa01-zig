@@ -30,7 +30,7 @@ pub fn build(b: *std.build.Builder) !void {
     exe.linkLibCpp();
     exe.linkSystemLibrary("sdl2");
     exe.linkSystemLibrary("sdl2_image");
-    exe.linkSystemLibrary("sdl2_ttf");
+    // exe.linkSystemLibrary("sdl2_ttf");
     exe.linkSystemLibrary("vulkan");
     exe.linkSystemLibrary("shaderc");
 

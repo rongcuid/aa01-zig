@@ -25,7 +25,7 @@ pub fn init() !Self {
         return error.SDLInitializationFailed;
     };
     var context = try VulkanContext.init(std.heap.c_allocator, window);
-    const zig_texture = try context.texture_manager.loadDefault(
+    const zig_texture = try context.texture_manager.loadFileRgbaUint(
         "src/zig.bmp",
         c.VK_IMAGE_USAGE_SAMPLED_BIT | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,

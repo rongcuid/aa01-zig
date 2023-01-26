@@ -43,11 +43,12 @@ pub fn init(
         img_height,
         1,
         4 * img_width,
-        0xFF000000,
-        0x00FF0000,
-        0x0000FF00,
         0x000000FF,
+        0x0000FF00,
+        0x00FF0000,
+        0xFF000000,
     );
+    defer c.SDL_FreeSurface(surface);
     var atlas_view: c.VkImageView = undefined;
     // Finish atlas
     c.nk_font_atlas_end(&atlas, c.nk_handle_ptr(atlas_view), 0);
