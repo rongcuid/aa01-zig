@@ -41,8 +41,8 @@ A secret game
 ** [x] Load texture
 ** [x] Render texture
 
-== Roadmap: Nuklear
+== Roadmap: Nuklear Debugging
 
+* [ ] Refactor texture management
 * [ ] Load and process fonts
 * [ ] Initialize and destroy Nuklear
-* [ ] Indirect drawing
