@@ -116,13 +116,13 @@ pub fn loadDefault(
         c.vkAllocateCommandBuffers(self.device, &cmdAI, &cmd),
         "Failed to allocate command buffer",
     );
-    try texture.loadNow(
+    try texture.load(
         cmd,
         self.queue,
-        surface_rgba,
-        layout,
         self.transfer_qfi,
         self.graphics_qfi,
+        surface_rgba,
+        layout,
     );
     try self.textures.put(path, texture);
     return texture;

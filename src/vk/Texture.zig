@@ -42,15 +42,25 @@ pub fn destroy(self: *@This()) void {
 }
 
 /// Load the texture into device right now
-pub fn loadNow(
+pub fn load(
     self: *@This(),
+    /// An initialized command buffer. Will be ended by this call.
     cmd: c.VkCommandBuffer,
+    /// Queue to transfer data with
     queue: c.VkQueue,
-    surface: *c.SDL_Surface,
-    dst_layout: c.VkImageLayout,
+    /// Queue family index of the transfer queue
     transfer_qfi: u32,
+    /// Queue family index of the graphics queue. Ownership will be transferred here
     graphics_qfi: u32,
+    /// Source data
+    surface: *c.SDL_Surface,
+    /// Destination image layout
+    dst_layout: c.VkImageLayout,
 ) !void {
+    // Create staging buffer
+    var staging: c.VkBuffer = undefined;
+    var stagingAlloc: c.VmaAllocation = undefined;
+    var stagingAI: c.VmaAllocationInfo = undefined;
     const n_bytes = @intCast(usize, surface.*.w * surface.*.h * surface.*.format.*.BytesPerPixel);
     const stagingCI = zeroInit(c.VkBufferCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -63,14 +73,12 @@ pub fn loadNow(
         .flags = c.VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | c.VMA_ALLOCATION_CREATE_MAPPED_BIT,
         .requiredFlags = c.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | c.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
     });
-    var staging: c.VkBuffer = undefined;
-    var stagingAlloc: c.VmaAllocation = undefined;
-    var stagingAI: c.VmaAllocationInfo = undefined;
     vk.check(
         c.vmaCreateBuffer(self.vma, &stagingCI, &stagingAllocCI, &staging, &stagingAlloc, &stagingAI),
         "Failed to create transfer buffer",
     );
     defer c.vmaDestroyBuffer(self.vma, staging, stagingAlloc);
+
     // Copy image into transfer buffer
     @memcpy(@ptrCast([*]u8, stagingAI.pMappedData), @ptrCast([*]const u8, surface.*.pixels), n_bytes);
     // Prepare transfer
@@ -93,6 +101,7 @@ pub fn loadNow(
             .depth = 1,
         },
     });
+    // Begin recording
     vk.check(c.vkBeginCommandBuffer(cmd, &beginInfo), "Failed to begin recording");
     self.recordUploadTransitionIn(cmd, transfer_qfi, graphics_qfi);
     c.vkCmdCopyBufferToImage(
@@ -105,6 +114,7 @@ pub fn loadNow(
     );
     self.recordUploadTransitionOut(cmd, dst_layout, transfer_qfi, graphics_qfi);
     vk.check(c.vkEndCommandBuffer(cmd), "Failed to end recording");
+    // Submit to queue
     const cmdInfo = zeroInit(c.VkCommandBufferSubmitInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO_KHR,
         .commandBuffer = cmd,
