@@ -17,14 +17,14 @@ queue: c.VkQueue,
 transfer_qfi: u32,
 graphics_qfi: u32,
 
-pub fn init(
+pub fn create(
     allocator: std.mem.Allocator,
     device: c.VkDevice,
     vma: c.VmaAllocator,
     queue: c.VkQueue,
     transfer_qfi: u32,
     graphics_qfi: u32,
-) !@This() {
+) !*@This() {
     const textures = TextureMap.init(allocator);
     // Command pool on transfer queue
     var pool: c.VkCommandPool = undefined;
@@ -37,7 +37,8 @@ pub fn init(
         "Failed to create command pool",
     );
 
-    return @This(){
+    var p = try allocator.create(@This());
+    p.* = @This(){
         .allocator = allocator,
         .device = device,
         .vma = vma,
@@ -47,15 +48,17 @@ pub fn init(
         .transfer_qfi = transfer_qfi,
         .graphics_qfi = graphics_qfi,
     };
+    return p;
 }
 
-pub fn deinit(self: *@This()) void {
-    std.log.debug("TextureManager.deinit()", .{});
+pub fn destroy(self: *@This()) void {
+    std.log.debug("TextureManager.destroy()", .{});
     var iter = self.textures.valueIterator();
     while (iter.next()) |texture| {
         texture.*.destroy();
     }
     c.vkDestroyCommandPool(self.device, self.pool, null);
+    self.allocator.destroy(self);
 }
 
 /// Load a default R8G8B8A8 image

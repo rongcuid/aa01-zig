@@ -20,6 +20,8 @@ pub fn build(b: *std.build.Builder) !void {
     exe.addCSourceFile("src/vma.cpp", &[_][]const u8{});
     // Nuklear
     exe.defineCMacro("NK_INCLUDE_FIXED_TYPES", null);
+    exe.defineCMacro("NK_INCLUDE_FONT_BAKING", null);
+    exe.defineCMacro("NK_INCLUDE_DEFAULT_FONT", null);
     exe.defineCMacro("NK_INCLUDE_VERTEX_BUFFER_OUTPUT", null);
 
     exe.addCSourceFile("src/nuklear.c", &[_][]const u8{});
@@ -28,6 +30,7 @@ pub fn build(b: *std.build.Builder) !void {
     exe.linkLibCpp();
     exe.linkSystemLibrary("sdl2");
     exe.linkSystemLibrary("sdl2_image");
+    exe.linkSystemLibrary("sdl2_ttf");
     exe.linkSystemLibrary("vulkan");
     exe.linkSystemLibrary("shaderc");
 

@@ -390,30 +390,6 @@ fn end_cmd(cmd: c.VkCommandBuffer) !void {
     );
 }
 
-// /// The `Vertex` struct
-// const vertexBindingDescriptions = [_]c.VkVertexInputBindingDescription{
-//     .{
-//         .binding = 0,
-//         .stride = @sizeOf(Vertex),
-//         .inputRate = c.VK_VERTEX_INPUT_RATE_VERTEX,
-//     },
-// };
-// /// Fields of `Vertex` struct
-// const vertexInputAttributeDescriptions = [_]c.VkVertexInputAttributeDescription{
-//     .{
-//         .location = 0,
-//         .binding = 0,
-//         .format = c.VK_FORMAT_R32G32_SFLOAT,
-//         .offset = @offsetOf(Vertex, "position"),
-//     },
-//     .{
-//         .location = 1,
-//         .binding = 0,
-//         .format = c.VK_FORMAT_R32G32_SFLOAT,
-//         .offset = @offsetOf(Vertex, "uv"),
-//     },
-// };
-
 const vertexInputStateCI = c.VkPipelineVertexInputStateCreateInfo{
     .sType = c.VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
     .pNext = null,
@@ -422,10 +398,6 @@ const vertexInputStateCI = c.VkPipelineVertexInputStateCreateInfo{
     .pVertexBindingDescriptions = null,
     .vertexAttributeDescriptionCount = 0,
     .pVertexAttributeDescriptions = null,
-    // .vertexBindingDescriptionCount = @intCast(u32, vertexBindingDescriptions.len),
-    // .pVertexBindingDescriptions = &vertexBindingDescriptions,
-    // .vertexAttributeDescriptionCount = @intCast(u32, vertexInputAttributeDescriptions.len),
-    // .pVertexAttributeDescriptions = &vertexInputAttributeDescriptions,
 };
 
 const inputAssemblyStateCI = c.VkPipelineInputAssemblyStateCreateInfo{
@@ -481,11 +453,6 @@ const dynamicStateCI = zeroInit(c.VkPipelineDynamicStateCreateInfo, .{
     .pDynamicStates = &dynamicStates,
 });
 
-// const Vertex = extern struct {
-//     position: [2]f32,
-//     uv: [2]f32,
-// };
-
 const bindings = [_]c.VkDescriptorSetLayoutBinding{.{
     .binding = 0,
     .descriptorType = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
@@ -494,11 +461,6 @@ const bindings = [_]c.VkDescriptorSetLayoutBinding{.{
     .pImmutableSamplers = null,
 }};
 const setLayoutCIs = [_]c.VkDescriptorSetLayoutCreateInfo{
-    // zeroInit(c.VkDescriptorSetLayoutCreateInfo, .{
-    //     .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-    //     .bindingCount = 0,
-    //     .pBindings = null,
-    // }),
     zeroInit(c.VkDescriptorSetLayoutCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
         .bindingCount = @intCast(u32, bindings.len),

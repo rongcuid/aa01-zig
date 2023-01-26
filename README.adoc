@@ -45,3 +45,4 @@ A secret game
 
 * [ ] Load and process fonts
 * [ ] Initialize and destroy Nuklear
+* [ ] Indirect drawing

@@ -43,6 +43,8 @@ pub fn init() !Self {
         &context.shader_manager,
     );
     try ftra.bindTexture(zig_texture.image);
+
+    // Return
     return Self{
         .window = window,
         .context = context,

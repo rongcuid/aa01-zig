@@ -23,7 +23,7 @@ surface: c.VkSurfaceKHR,
 swapchain: vk.Swapchain,
 
 shader_manager: vk.ShaderManager,
-texture_manager: vk.TextureManager,
+texture_manager: *vk.TextureManager,
 
 ////// Methods
 
@@ -81,7 +81,7 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
         @intCast(u32, height),
     );
     const shader_manager = try vk.ShaderManager.init(alloc, device);
-    const texture_manager = try vk.TextureManager.init(alloc, device, vma, queue, gqIndex, gqIndex);
+    const texture_manager = try vk.TextureManager.create(alloc, device, vma, queue, gqIndex, gqIndex);
     return @This(){
         .instance = instance,
         .physicalDevice = physDevice,
@@ -100,7 +100,7 @@ pub fn deinit(self: *@This()) void {
     std.log.debug("VulkanContext.deinit()", .{});
     vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
     self.shader_manager.deinit();
-    self.texture_manager.deinit();
+    self.texture_manager.destroy();
     self.swapchain.deinit();
     c.vkDestroySurfaceKHR(self.instance.vkInstance, self.surface, null);
     self.surface = undefined;
