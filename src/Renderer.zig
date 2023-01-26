@@ -16,7 +16,7 @@ window: *c.SDL_Window,
 context: VulkanContext,
 csra: ClearScreenRenderActivity,
 ftra: FillTextureRenderActivity,
-zig_texture: *vk.TextureManager.Texture,
+zig_texture: *vk.Texture,
 
 pub fn init() !Self {
     const window = c.SDL_CreateWindow("My Game Window", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, 300, 73, c.SDL_WINDOW_VULKAN) orelse

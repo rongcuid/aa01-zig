@@ -4,7 +4,7 @@ const vk = @import("../vk.zig");
 
 const zeroInit = std.mem.zeroInit;
 
-const TextureMap = std.StringHashMap(*Texture);
+const TextureMap = std.StringHashMap(*vk.Texture);
 
 allocator: std.mem.Allocator,
 device: c.VkDevice,
@@ -67,7 +67,7 @@ pub fn loadDefault(
     path: [:0]const u8,
     usage: c.VkImageUsageFlags,
     layout: c.VkImageLayout,
-) !*Texture {
+) !*vk.Texture {
     if (self.textures.get(path)) |texture| {
         return texture;
     }
@@ -103,7 +103,7 @@ pub fn loadDefault(
         .sharingMode = c.VK_SHARING_MODE_EXCLUSIVE,
         .initialLayout = c.VK_IMAGE_LAYOUT_UNDEFINED,
     });
-    var texture = try Texture.create(self.allocator, self.vma, &imageCI);
+    var texture = try vk.Texture.create(self.allocator, self.vma, &imageCI);
     try self.loadNow(texture, surface_rgba, layout);
     try self.textures.put(path, texture);
     return texture;
@@ -112,7 +112,7 @@ pub fn loadDefault(
 /// Load the texture into device right now
 pub fn loadNow(
     self: *@This(),
-    texture: *Texture,
+    texture: *vk.Texture,
     surface: *c.SDL_Surface,
     dst_layout: c.VkImageLayout,
 ) !void {
@@ -200,44 +200,7 @@ pub fn loadNow(
     vk.check(c.vkQueueWaitIdle(self.queue), "Failed to wait queue idle");
 }
 
-////// Texture
-
-pub const Texture = struct {
-    allocator: std.mem.Allocator,
-    vma: c.VmaAllocator,
-    image: c.VkImage,
-    alloc: c.VmaAllocation,
-    pub fn create(
-        allocator: std.mem.Allocator,
-        vma: c.VmaAllocator,
-        pImageCI: *const c.VkImageCreateInfo,
-    ) !*Texture {
-        const allocCI = zeroInit(c.VmaAllocationCreateInfo, .{
-            .usage = c.VMA_MEMORY_USAGE_AUTO,
-            .requiredFlags = c.VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        });
-        var image: c.VkImage = undefined;
-        var alloc: c.VmaAllocation = undefined;
-        vk.check(
-            c.vmaCreateImage(vma, pImageCI, &allocCI, &image, &alloc, null),
-            "Failed to create image",
-        );
-        var p = try allocator.create(Texture);
-        p.* = Texture{
-            .allocator = allocator,
-            .vma = vma,
-            .image = image,
-            .alloc = alloc,
-        };
-        return p;
-    }
-    pub fn destroy(self: *Texture) void {
-        c.vmaDestroyImage(self.vma, self.image, self.alloc);
-        self.allocator.destroy(self);
-    }
-};
-
-fn recordUploadTransitionIn(self: *const @This(), cmd: c.VkCommandBuffer, texture: *const Texture) void {
+fn recordUploadTransitionIn(self: *const @This(), cmd: c.VkCommandBuffer, texture: *const vk.Texture) void {
     self.recordLayoutTransition(
         cmd,
         texture,
@@ -252,7 +215,7 @@ fn recordUploadTransitionIn(self: *const @This(), cmd: c.VkCommandBuffer, textur
     );
 }
 
-fn recordUploadTransitionOut(self: *const @This(), cmd: c.VkCommandBuffer, texture: *const Texture, dst_layout: c.VkImageLayout) void {
+fn recordUploadTransitionOut(self: *const @This(), cmd: c.VkCommandBuffer, texture: *const vk.Texture, dst_layout: c.VkImageLayout) void {
     self.recordLayoutTransition(
         cmd,
         texture,
@@ -270,7 +233,7 @@ fn recordUploadTransitionOut(self: *const @This(), cmd: c.VkCommandBuffer, textu
 fn recordLayoutTransition(
     self: *const @This(),
     cmd: c.VkCommandBuffer,
-    texture: *const Texture,
+    texture: *const vk.Texture,
     srcStageMask: c.VkPipelineStageFlags2KHR,
     srcAccessMask: c.VkAccessFlags2KHR,
     dstStageMask: c.VkPipelineStageFlags2KHR,
