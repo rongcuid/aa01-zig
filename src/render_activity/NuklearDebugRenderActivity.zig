@@ -49,6 +49,7 @@ pub fn init(
         0xFF000000,
     );
     defer c.SDL_FreeSurface(surface);
+    try atlas_texture.load(cmd, queue, transfer_qfi, graphics_qfi, surface);
     var atlas_view: c.VkImageView = undefined;
     // Finish atlas
     c.nk_font_atlas_end(&atlas, c.nk_handle_ptr(atlas_view), 0);
