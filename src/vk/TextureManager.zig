@@ -87,28 +87,29 @@ pub fn loadFileRgbaUint(
     }
     defer c.SDL_FreeSurface(surface_rgba);
 
-    var texture = try vk.Texture.createDefault(
-        self.allocator,
-        self.device,
-        self.vma,
-        @intCast(u32, surface_rgba.*.w),
-        @intCast(u32, surface_rgba.*.h),
-        usage,
-    );
-    try self.load(texture, surface_rgba, layout);
+    const texture = try self.loadSurface(surface_rgba, usage, layout);
     try self.textures.put(path, texture);
     return texture;
 }
 
 /// Load the texture into device right now
-pub fn load(
+pub fn loadSurface(
     self: *@This(),
-    texture: *Texture,
     /// Source data
     surface: *c.SDL_Surface,
+    usage: c.VkImageUsageFlags,
     /// Destination image layout
     dst_layout: c.VkImageLayout,
-) !void {
+) !*Texture {
+    // Create texture
+    var texture = try vk.Texture.createDefault(
+        self.allocator,
+        self.device,
+        self.vma,
+        @intCast(u32, surface.*.w),
+        @intCast(u32, surface.*.h),
+        usage,
+    );
     // Create command buffer
     var cmd: c.VkCommandBuffer = undefined;
     const cmdAI = c.VkCommandBufferAllocateInfo{
@@ -195,6 +196,7 @@ pub fn load(
         "Failed to submit queue",
     );
     vk.check(c.vkQueueWaitIdle(self.queue), "Failed to wait queue idle");
+    return texture;
 }
 
 fn recordUploadTransitionIn(
