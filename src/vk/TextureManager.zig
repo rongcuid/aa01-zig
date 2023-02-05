@@ -125,29 +125,11 @@ pub fn loadSurface(
     );
     defer c.vkFreeCommandBuffers(self.device, self.pool, 1, &cmd);
     // Create staging buffer
-    var staging: c.VkBuffer = undefined;
-    var stagingAlloc: c.VmaAllocation = undefined;
-    var stagingAI: c.VmaAllocationInfo = undefined;
     const n_bytes = @intCast(usize, surface.*.w * surface.*.h * surface.*.format.*.BytesPerPixel);
-    const stagingCI = zeroInit(c.VkBufferCreateInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-        .usage = c.VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        .size = n_bytes,
-        .sharingMode = c.VK_SHARING_MODE_EXCLUSIVE,
-    });
-    const stagingAllocCI = zeroInit(c.VmaAllocationCreateInfo, .{
-        .usage = c.VMA_MEMORY_USAGE_AUTO,
-        .flags = c.VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | c.VMA_ALLOCATION_CREATE_MAPPED_BIT,
-        .requiredFlags = c.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | c.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-    });
-    vk.check(
-        c.vmaCreateBuffer(self.vma, &stagingCI, &stagingAllocCI, &staging, &stagingAlloc, &stagingAI),
-        "Failed to create transfer buffer",
-    );
-    defer c.vmaDestroyBuffer(self.vma, staging, stagingAlloc);
-
+    const staging = try self.createStagingBuffer(n_bytes);
+    defer c.vmaDestroyBuffer(self.vma, staging.buffer, staging.alloc);
     // Copy image into transfer buffer
-    @memcpy(@ptrCast([*]u8, stagingAI.pMappedData), @ptrCast([*]const u8, surface.*.pixels), n_bytes);
+    @memcpy(@ptrCast([*]u8, staging.allocInfo.pMappedData), @ptrCast([*]const u8, surface.*.pixels), n_bytes);
     // Prepare transfer
     const beginInfo = c.VkCommandBufferBeginInfo{
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -173,7 +155,7 @@ pub fn loadSurface(
     self.recordUploadTransitionIn(texture, cmd);
     c.vkCmdCopyBufferToImage(
         cmd,
-        staging,
+        staging.buffer,
         texture.image,
         c.VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1,
@@ -197,6 +179,39 @@ pub fn loadSurface(
     );
     vk.check(c.vkQueueWaitIdle(self.queue), "Failed to wait queue idle");
     return texture;
+}
+
+////// Functions for loading texture
+
+fn createStagingBuffer(self: *const @This(), size: usize) !struct {
+    buffer: c.VkBuffer,
+    alloc: c.VmaAllocation,
+    allocInfo: c.VmaAllocationInfo,
+} {
+    var staging: c.VkBuffer = undefined;
+    var stagingAlloc: c.VmaAllocation = undefined;
+    var stagingAI: c.VmaAllocationInfo = undefined;
+    const n_bytes = @intCast(usize, size);
+    const stagingCI = zeroInit(c.VkBufferCreateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+        .usage = c.VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        .size = n_bytes,
+        .sharingMode = c.VK_SHARING_MODE_EXCLUSIVE,
+    });
+    const stagingAllocCI = zeroInit(c.VmaAllocationCreateInfo, .{
+        .usage = c.VMA_MEMORY_USAGE_AUTO,
+        .flags = c.VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | c.VMA_ALLOCATION_CREATE_MAPPED_BIT,
+        .requiredFlags = c.VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | c.VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+    });
+    vk.check(
+        c.vmaCreateBuffer(self.vma, &stagingCI, &stagingAllocCI, &staging, &stagingAlloc, &stagingAI),
+        "Failed to create transfer buffer",
+    );
+    return .{
+        .buffer = staging,
+        .alloc = stagingAlloc,
+        .allocInfo = stagingAI,
+    };
 }
 
 fn recordUploadTransitionIn(
