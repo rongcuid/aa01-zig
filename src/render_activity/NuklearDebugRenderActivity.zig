@@ -10,35 +10,34 @@ const Pipeline = @import("nk/NuklearPipeline.zig");
 allocator: std.mem.Allocator,
 device: c.VkDevice,
 vma: c.VmaAllocator,
+/// Owns
 pipeline: Pipeline,
-atlas_texture: vk.Texture,
+/// Owns
+atlas_texture: *vk.Texture,
+/// Owns
+atlas_view: c.VkImageView,
 
 pub fn init(
     allocator: std.mem.Allocator,
     device: c.VkDevice,
     vma: c.VmaAllocator,
+    texture_manager: *vk.TextureManager,
 ) !@This() {
-    const img_width = 1024;
-    const img_height = 1024;
+    var img_width: c_int = 1024;
+    var img_height: c_int = 1024;
     var atlas: c.nk_font_atlas = undefined;
     c.nk_font_atlas_init_default(&atlas);
     c.nk_font_atlas_begin(&atlas);
-    c.nk_font_atlas_add_default(&atlas, 16, null);
+    const font = c.nk_font_atlas_add_default(&atlas, 16, null);
+    _ = font;
     const img = @ptrCast(
         [*]const u8,
         c.nk_font_atlas_bake(&atlas, &img_width, &img_height, c.NK_FONT_ATLAS_RGBA32),
     );
+    defer c.nk_font_atlas_clear(&atlas);
     // Create device texture
-    var atlas_texture = try vk.Texture.createDefault(
-        allocator,
-        device,
-        vma,
-        img_width,
-        img_height,
-        c.VK_IMAGE_USAGE_SAMPLED_BIT | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-    );
     const surface = c.SDL_CreateRGBSurfaceFrom(
-        img,
+        @ptrCast(*anyopaque, img),
         img_width,
         img_height,
         1,
@@ -49,7 +48,12 @@ pub fn init(
         0xFF000000,
     );
     defer c.SDL_FreeSurface(surface);
-    try atlas_texture.load(cmd, queue, transfer_qfi, graphics_qfi, surface);
+    // Create the texture on device
+    const atlas_texture = try texture_manager.loadSurface(
+        surface,
+        c.VK_IMAGE_USAGE_SAMPLED_BIT,
+        c.VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL_KHR,
+    );
     var atlas_view: c.VkImageView = undefined;
     // Finish atlas
     c.nk_font_atlas_end(&atlas, c.nk_handle_ptr(atlas_view), 0);
@@ -57,11 +61,15 @@ pub fn init(
         .allocator = allocator,
         .device = device,
         .vma = vma,
+        .atlas_texture = atlas_texture,
+        .atlas_view = atlas_view,
     };
 }
 
 pub fn deinit(self: *@This()) void {
-    _ = self;
+    c.vkDestroyImageView(self.device, self.atlas_view, null);
+    self.atlas_texture.destroy();
+    self.pipeline.deinit();
 }
 
 pub fn render(

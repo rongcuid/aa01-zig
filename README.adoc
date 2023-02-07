@@ -43,6 +43,6 @@ A secret game
 
 == Roadmap: Nuklear Debugging
 
-* [ ] Refactor texture management
+* [x] Refactor texture management
 * [ ] Load and process fonts
 * [ ] Initialize and destroy Nuklear

@@ -7,6 +7,7 @@ const vk = @import("vk.zig");
 const VulkanContext = @import("VulkanContext.zig");
 const ClearScreenRenderActivity = @import("render_activity/ClearScreenRenderActivity.zig");
 const FillTextureRenderActivity = @import("render_activity/FillTextureRenderActivity.zig");
+const NuklearDebugRenderActivity = @import("render_activity/NuklearDebugRenderActivity.zig");
 
 var alloc = std.heap.c_allocator;
 
@@ -25,7 +26,7 @@ pub fn init() !Self {
         return error.SDLInitializationFailed;
     };
     var context = try VulkanContext.init(std.heap.c_allocator, window);
-    const zig_texture = try context.texture_manager.loadFileRgbaUint(
+    const zig_texture = try context.texture_manager.loadFileCached(
         "src/zig.bmp",
         c.VK_IMAGE_USAGE_SAMPLED_BIT | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
         c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -43,6 +44,13 @@ pub fn init() !Self {
         &context.shader_manager,
     );
     try ftra.bindTexture(zig_texture.image);
+    // var ndra = try NuklearDebugRenderActivity.init(
+    //     alloc,
+    //     context.device,
+    //     context.vma,
+    //     context.texture_manager,
+    // );
+    // ndra.deinit();
 
     // Return
     return Self{

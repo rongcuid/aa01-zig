@@ -19,6 +19,7 @@ pub fn build(b: *std.build.Builder) !void {
     // Vulkan memory allocator
     exe.addCSourceFile("src/vma.cpp", &[_][]const u8{});
     // Nuklear
+    exe.defineCMacro("NK_INCLUDE_DEFAULT_ALLOCATOR", null);
     exe.defineCMacro("NK_INCLUDE_FIXED_TYPES", null);
     exe.defineCMacro("NK_INCLUDE_FONT_BAKING", null);
     exe.defineCMacro("NK_INCLUDE_DEFAULT_FONT", null);

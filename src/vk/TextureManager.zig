@@ -62,8 +62,8 @@ pub fn destroy(self: *@This()) void {
     self.allocator.destroy(self);
 }
 
-/// Load a default R8G8B8A8 image
-pub fn loadFileRgbaUint(
+/// Load a default R8G8B8A8 image. Managed
+pub fn loadFileCached(
     self: *@This(),
     path: [:0]const u8,
     usage: c.VkImageUsageFlags,
@@ -108,7 +108,7 @@ pub fn loadSurface(
         self.vma,
         @intCast(u32, surface.*.w),
         @intCast(u32, surface.*.h),
-        usage,
+        usage | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
     );
     // Create command buffer
     var cmd: c.VkCommandBuffer = undefined;
