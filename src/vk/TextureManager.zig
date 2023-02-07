@@ -2,6 +2,7 @@ const std = @import("std");
 const c = @import("../c.zig");
 const vk = @import("../vk.zig");
 
+const assert = std.debug.assert;
 const zeroInit = std.mem.zeroInit;
 
 const TextureMap = std.StringHashMap(*vk.Texture);
@@ -87,27 +88,36 @@ pub fn loadFileCached(
     }
     defer c.SDL_FreeSurface(surface_rgba);
 
-    const texture = try self.loadSurface(surface_rgba, usage, layout);
+    const texture = try self.loadPixels(
+        @ptrCast([*]const u8, surface_rgba.*.pixels)[0..@intCast(usize, surface_rgba.*.w * surface_rgba.*.h * 4)],
+        @intCast(u32, surface_rgba.*.w),
+        @intCast(u32, surface_rgba.*.h),
+        usage,
+        layout,
+    );
     try self.textures.put(path, texture);
     return texture;
 }
 
 /// Load the texture into device right now
-pub fn loadSurface(
+pub fn loadPixels(
     self: *@This(),
     /// Source data
-    surface: *c.SDL_Surface,
+    pixels: []const u8,
+    width: u32,
+    height: u32,
     usage: c.VkImageUsageFlags,
     /// Destination image layout
     dst_layout: c.VkImageLayout,
 ) !*Texture {
+    assert(pixels.len == width * height * 4);
     // Create texture
     var texture = try vk.Texture.createDefault(
         self.allocator,
         self.device,
         self.vma,
-        @intCast(u32, surface.*.w),
-        @intCast(u32, surface.*.h),
+        width,
+        height,
         usage | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
     );
     // Create command buffer
@@ -125,11 +135,10 @@ pub fn loadSurface(
     );
     defer c.vkFreeCommandBuffers(self.device, self.pool, 1, &cmd);
     // Create staging buffer
-    const n_bytes = @intCast(usize, surface.*.w * surface.*.h * surface.*.format.*.BytesPerPixel);
-    const staging = try self.createStagingBuffer(n_bytes);
+    const staging = try self.createStagingBuffer(pixels.len);
     defer c.vmaDestroyBuffer(self.vma, staging.buffer, staging.alloc);
     // Copy image into transfer buffer
-    @memcpy(@ptrCast([*]u8, staging.allocInfo.pMappedData), @ptrCast([*]const u8, surface.*.pixels), n_bytes);
+    @memcpy(@ptrCast([*]u8, staging.allocInfo.pMappedData), pixels.ptr, pixels.len);
     // Prepare transfer
     const beginInfo = c.VkCommandBufferBeginInfo{
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -145,8 +154,8 @@ pub fn loadSurface(
             .layerCount = 1,
         },
         .imageExtent = c.VkExtent3D{
-            .width = @intCast(u32, surface.*.w),
-            .height = @intCast(u32, surface.*.h),
+            .width = width,
+            .height = height,
             .depth = 1,
         },
     });
