@@ -44,13 +44,13 @@ pub fn init() !Self {
         &context.shader_manager,
     );
     try ftra.bindTexture(zig_texture.image);
-    // var ndra = try NuklearDebugRenderActivity.init(
-    //     alloc,
-    //     context.device,
-    //     context.vma,
-    //     context.texture_manager,
-    // );
-    // ndra.deinit();
+    var ndra = try NuklearDebugRenderActivity.init(
+        alloc,
+        context.device,
+        context.vma,
+        context.texture_manager,
+    );
+    ndra.deinit();
 
     // Return
     return Self{
