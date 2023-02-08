@@ -44,7 +44,7 @@ pub fn init(
         c.VK_IMAGE_USAGE_SAMPLED_BIT,
         c.VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL_KHR,
     );
-    var atlas_view = try atlas_texture.createDefaultView(c.VK_FORMAT_R8G8B8A8_UINT);
+    var atlas_view = try atlas_texture.createDefaultView();
     // Finish atlas
     c.nk_font_atlas_end(&atlas, c.nk_handle_ptr(atlas_view), 0);
     return @This(){

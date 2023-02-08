@@ -78,10 +78,7 @@ pub fn destroy(self: *@This()) void {
 }
 
 /// Create a managed image view
-pub fn createDefaultView(
-    self: *@This(),
-    format: c.VkFormat,
-) !c.VkImageView {
+pub fn createDefaultView(self: *@This()) !c.VkImageView {
     var view: c.VkImageView = undefined;
     const ci = c.VkImageViewCreateInfo{
         .sType = c.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -89,7 +86,7 @@ pub fn createDefaultView(
         .flags = 0,
         .image = self.image,
         .viewType = c.VK_IMAGE_VIEW_TYPE_2D,
-        .format = format,
+        .format = self.format,
         .components = .{
             .r = c.VK_COMPONENT_SWIZZLE_IDENTITY,
             .g = c.VK_COMPONENT_SWIZZLE_IDENTITY,
