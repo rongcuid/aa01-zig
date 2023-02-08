@@ -152,6 +152,7 @@ pub fn render(
     });
     try self.beginTransition(cmd, out_image);
     vk.PfnD(.vkCmdBeginRenderingKHR).on(self.device)(cmd, &rendering_info);
+    try self.drawNuklear(cmd);
     try setDynamicState(cmd, out_area);
     vk.PfnD(.vkCmdEndRenderingKHR).on(self.device)(cmd);
     try self.endTransition(cmd, out_image, out_layout);
@@ -187,6 +188,20 @@ fn beginTransition(
         cmd,
         &dependency,
     );
+}
+
+fn drawNuklear(self: *@This(), cmd: c.VkCommandBuffer) !void {
+    // Convert draw commands
+    if (c.nk_convert(&self.context, &self.cmds, &self.verts, &self.idx, &self.convert_cfg) != c.NK_CONVERT_SUCCESS) {
+        @panic("Failed to convert nk_commands");
+    }
+    // Draw commands
+    var nk_cmd = c.nk__draw_begin(&self.context, &self.cmds);
+    while (nk_cmd != null) : (nk_cmd = c.nk__draw_next(nk_cmd, &self.cmds, &self.context)) {
+        if (nk_cmd.*.elem_count == 0) continue;
+        // TODO
+        _ = cmd;
+    }
 }
 
 fn setDynamicState(
