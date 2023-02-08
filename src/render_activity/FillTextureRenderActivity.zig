@@ -247,7 +247,6 @@ pub fn render(
     });
 
     // Start
-    try begin_cmd(cmd);
     try self.begin_transition(cmd, out_image);
     vk.PfnD(.vkCmdBeginRenderingKHR).on(self.device)(cmd, &rendering_info);
     c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline);
@@ -276,18 +275,6 @@ pub fn render(
     }
     vk.PfnD(.vkCmdEndRenderingKHR).on(self.device)(cmd);
     try self.end_transition(cmd, out_image, out_layout);
-    try end_cmd(cmd);
-}
-
-fn begin_cmd(cmd: c.VkCommandBuffer) !void {
-    const begin_info = zeroInit(c.VkCommandBufferBeginInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-    });
-    vk.check(
-        c.vkBeginCommandBuffer(cmd, &begin_info),
-        "Failed to begin command buffer",
-    );
 }
 
 fn begin_transition(
@@ -352,13 +339,6 @@ fn end_transition(
         .pImageMemoryBarriers = &image_barrier,
     });
     vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.device)(cmd, &dependency);
-}
-
-fn end_cmd(cmd: c.VkCommandBuffer) !void {
-    vk.check(
-        c.vkEndCommandBuffer(cmd),
-        "Failed to end command buffer",
-    );
 }
 
 const vertexInputStateCI = c.VkPipelineVertexInputStateCreateInfo{

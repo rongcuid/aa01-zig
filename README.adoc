@@ -48,4 +48,5 @@ A secret game
 * [x] Initialize and destroy Nuklear
 * [x] Make shader manager immovable
 * [x] Configure Nuklear vertex buffer
+* [x] Refactor command buffer passing to render activities
 * [ ] Render loop

@@ -23,6 +23,7 @@ pub fn deinit(self: *@This()) void {
     _ = self;
 }
 
+/// This begins and ends the cmd buffer
 pub fn render(
     self: *@This(),
     cmd: c.VkCommandBuffer,

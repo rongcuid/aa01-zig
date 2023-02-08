@@ -70,24 +70,26 @@ pub fn render(self: *Self) !void {
     const acquired = try self.context.swapchain.acquire();
     // Prepare structures
     try self.beginRender(&acquired);
-    var cmds: [1]c.VkCommandBuffer = undefined;
+    var cmd: c.VkCommandBuffer = undefined;
     const allocInfo = zeroInit(c.VkCommandBufferAllocateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = acquired.pool,
         .level = c.VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = @intCast(u32, cmds.len),
+        .commandBufferCount = 1,
     });
     vk.check(
-        c.vkAllocateCommandBuffers(self.context.device, &allocInfo, &cmds),
+        c.vkAllocateCommandBuffers(self.context.device, &allocInfo, &cmd),
         "Failed to allocate command buffer",
     );
     const area = zeroInit(c.VkRect2D, .{
         .extent = self.context.swapchain.extent,
     });
+    try begin_cmd(cmd);
     // Run renderers
-    try self.ftra.render(cmds[0], acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    try self.ftra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    try end_cmd(cmd);
     // Submit and present
-    try self.submit(&acquired, &cmds);
+    try self.submit(&acquired, &[_]c.VkCommandBuffer{cmd});
     const resize = try self.context.swapchain.present(self.context.graphicsQueue);
     // TODO: resize swapchain
     _ = resize;
@@ -105,6 +107,24 @@ fn beginRender(self: *Self, acquired: *const vk.Swapchain.Frame) !void {
     vk.check(
         c.vkResetCommandPool(self.context.device, acquired.pool, 0),
         "Failed to reset command pool",
+    );
+}
+
+fn begin_cmd(cmd: c.VkCommandBuffer) !void {
+    const begin_info = zeroInit(c.VkCommandBufferBeginInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    });
+    vk.check(
+        c.vkBeginCommandBuffer(cmd, &begin_info),
+        "Failed to begin command buffer",
+    );
+}
+
+fn end_cmd(cmd: c.VkCommandBuffer) !void {
+    vk.check(
+        c.vkEndCommandBuffer(cmd),
+        "Failed to end command buffer",
     );
 }
 
