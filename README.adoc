@@ -47,5 +47,5 @@ A secret game
 * [x] Loading default baked font
 * [x] Initialize and destroy Nuklear
 * [x] Make shader manager immovable
-* [ ] Configure Nuklear vertex buffer
+* [x] Configure Nuklear vertex buffer
 * [ ] Render loop
