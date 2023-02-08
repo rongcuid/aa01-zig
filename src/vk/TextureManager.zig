@@ -116,6 +116,7 @@ pub fn loadPixels(
         self.allocator,
         self.device,
         self.vma,
+        c.VK_FORMAT_R8G8B8A8_UINT,
         width,
         height,
         usage | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT,

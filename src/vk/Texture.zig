@@ -8,6 +8,8 @@ allocator: std.mem.Allocator,
 
 device: c.VkDevice,
 vma: c.VmaAllocator,
+
+format: c.VkFormat,
 image: c.VkImage,
 alloc: c.VmaAllocation,
 
@@ -17,6 +19,7 @@ pub fn createDefault(
     allocator: std.mem.Allocator,
     device: c.VkDevice,
     vma: c.VmaAllocator,
+    format: c.VkFormat,
     width: u32,
     height: u32,
     usage: c.VkImageUsageFlags,
@@ -24,7 +27,7 @@ pub fn createDefault(
     const ci = zeroInit(c.VkImageCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = c.VK_IMAGE_TYPE_2D,
-        .format = c.VK_FORMAT_R8G8B8A8_UINT,
+        .format = format,
         .extent = c.VkExtent3D{ .width = width, .height = height, .depth = 1 },
         .mipLevels = 1,
         .arrayLayers = 1,
@@ -58,6 +61,7 @@ pub fn create(
         .allocator = allocator,
         .device = device,
         .vma = vma,
+        .format = pImageCI.*.format,
         .image = image,
         .alloc = alloc,
         .views = views,
