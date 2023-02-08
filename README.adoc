@@ -44,5 +44,5 @@ A secret game
 == Roadmap: Nuklear Debugging
 
 * [x] Refactor texture management
-* [ ] Load and process fonts
+* [x] Loading default baked font
 * [ ] Initialize and destroy Nuklear

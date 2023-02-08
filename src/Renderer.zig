@@ -21,7 +21,7 @@ ndra: NuklearDebugRenderActivity,
 zig_texture: *vk.Texture,
 
 pub fn init() !Self {
-    const window = c.SDL_CreateWindow("My Game Window", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, 300, 73, c.SDL_WINDOW_VULKAN) orelse
+    const window = c.SDL_CreateWindow("My Game Window", c.SDL_WINDOWPOS_UNDEFINED, c.SDL_WINDOWPOS_UNDEFINED, 1280, 720, c.SDL_WINDOW_VULKAN) orelse
         {
         c.SDL_Log("Unable to create window: %s", c.SDL_GetError());
         return error.SDLInitializationFailed;
@@ -44,13 +44,14 @@ pub fn init() !Self {
         context.pipeline_cache,
         &context.shader_manager,
     );
-    try ftra.bindTexture(try zig_texture.createDefaultView());
+    // try ftra.bindTexture(try zig_texture.createDefaultView());
     var ndra = try NuklearDebugRenderActivity.init(
         alloc,
         context.device,
         context.vma,
         context.texture_manager,
     );
+    try ftra.bindTexture(ndra.atlas_view);
 
     // Return
     return Self{
