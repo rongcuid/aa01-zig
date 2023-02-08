@@ -28,27 +28,30 @@ pub const ShaderKind = enum {
     }
 };
 
-pub fn init(allocator: std.mem.Allocator, device: c.VkDevice) !@This() {
+pub fn create(allocator: std.mem.Allocator, device: c.VkDevice) !*@This() {
     const compiler = c.shaderc_compiler_initialize();
     if (compiler == null) {
         @panic("Failed to initialize shaderc");
     }
     const shaders = ShaderMap.init(allocator);
-    return @This(){
+    var p = try allocator.create(@This());
+    p.* = @This(){
         .allocator = allocator,
         .device = device,
         .compiler = compiler,
         .shaders = shaders,
     };
+    return p;
 }
 
-pub fn deinit(self: *@This()) void {
+pub fn destroy(self: *@This()) void {
     var iter = self.shaders.valueIterator();
     while (iter.next()) |pShader| {
         c.vkDestroyShaderModule(self.device, pShader.*, null);
     }
     self.shaders.deinit();
     c.shaderc_compiler_release(self.compiler);
+    self.allocator.destroy(self);
 }
 
 pub fn loadDefault(self: *@This(), path: [:0]const u8, kind: ShaderKind) !c.VkShaderModule {

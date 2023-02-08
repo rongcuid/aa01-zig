@@ -42,7 +42,7 @@ pub fn init() !Self {
     var ftra = try FillTextureRenderActivity.init(
         context.device,
         context.pipeline_cache,
-        &context.shader_manager,
+        context.shader_manager,
     );
     // try ftra.bindTexture(try zig_texture.createDefaultView());
     var ndra = try NuklearDebugRenderActivity.init(
@@ -51,7 +51,7 @@ pub fn init() !Self {
         context.vma,
         context.pipeline_cache,
         context.texture_manager,
-        &context.shader_manager,
+        context.shader_manager,
     );
     try ftra.bindTexture(ndra.atlas_view);
 

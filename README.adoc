@@ -46,5 +46,6 @@ A secret game
 * [x] Refactor texture management
 * [x] Loading default baked font
 * [x] Initialize and destroy Nuklear
+* [x] Make shader manager immovable
 * [ ] Configure Nuklear vertex buffer
 * [ ] Render loop
