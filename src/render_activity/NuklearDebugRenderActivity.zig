@@ -201,7 +201,14 @@ fn drawNuklear(self: *@This(), cmd: c.VkCommandBuffer) !void {
         if (nk_cmd.*.elem_count == 0) continue;
         // TODO
         _ = cmd;
+        const texture = @ptrCast(*c.VkImageView, @alignCast(@alignOf(c.VkImageView), nk_cmd.*.texture.ptr));
+        _ = texture;
+        // Bind texture descriptor set
+        // Set scissor
+        // Draw
     }
+    // Finish recording, reset Nuklear state
+    c.nk_clear(&self.context);
 }
 
 fn setDynamicState(
