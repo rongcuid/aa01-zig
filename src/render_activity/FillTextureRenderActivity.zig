@@ -85,9 +85,6 @@ pub fn init(
 
 pub fn deinit(self: *@This()) void {
     vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait for device idle");
-    if (self.texture_view != null) {
-        c.vkDestroyImageView(self.device, self.texture_view, null);
-    }
     c.vkDestroySampler(self.device, self.sampler, null);
     c.vkDestroyDescriptorPool(self.device, self.descriptor_pool, null);
     for (self.descriptor_set_layout) |dsl| {
@@ -192,34 +189,8 @@ fn createPipeline(
 }
 
 /// Binds a texture to this renderer
-pub fn bindTexture(self: *@This(), texture: c.VkImage) !void {
-    if (self.texture_view != null) {
-        c.vkDestroyImageView(self.device, self.texture_view, null);
-    }
-    var view: c.VkImageView = undefined;
-    const viewCI = zeroInit(c.VkImageViewCreateInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-        .image = texture,
-        .viewType = c.VK_IMAGE_VIEW_TYPE_2D,
-        .format = c.VK_FORMAT_R8G8B8A8_UINT,
-        .components = c.VkComponentMapping{
-            .r = c.VK_COMPONENT_SWIZZLE_R,
-            .g = c.VK_COMPONENT_SWIZZLE_G,
-            .b = c.VK_COMPONENT_SWIZZLE_B,
-            .a = c.VK_COMPONENT_SWIZZLE_A,
-        },
-        .subresourceRange = c.VkImageSubresourceRange{
-            .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        },
-    });
-    vk.check(
-        c.vkCreateImageView(self.device, &viewCI, null, &view),
-        "Failed to create image view",
-    );
+pub fn bindTexture(self: *@This(), view: c.VkImageView) !void {
+    self.texture_view = view;
     // Prepare descriptor sets
     vk.check(
         c.vkResetDescriptorPool(self.device, self.descriptor_pool, 0),

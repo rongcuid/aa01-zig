@@ -35,7 +35,6 @@ pub fn init(
         c.nk_font_atlas_bake(&atlas, &img_width, &img_height, c.NK_FONT_ATLAS_RGBA32),
     );
     defer c.nk_font_atlas_clear(&atlas);
-    // Create device texture
     // Create the texture on device
     const atlas_texture = try texture_manager.loadPixels(
         img[0..@intCast(usize, img_width * img_height * 4)],

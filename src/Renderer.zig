@@ -17,6 +17,7 @@ window: *c.SDL_Window,
 context: VulkanContext,
 csra: ClearScreenRenderActivity,
 ftra: FillTextureRenderActivity,
+ndra: NuklearDebugRenderActivity,
 zig_texture: *vk.Texture,
 
 pub fn init() !Self {
@@ -43,14 +44,13 @@ pub fn init() !Self {
         context.pipeline_cache,
         &context.shader_manager,
     );
-    try ftra.bindTexture(zig_texture.image);
+    try ftra.bindTexture(try zig_texture.createDefaultView());
     var ndra = try NuklearDebugRenderActivity.init(
         alloc,
         context.device,
         context.vma,
         context.texture_manager,
     );
-    ndra.deinit();
 
     // Return
     return Self{
@@ -58,10 +58,12 @@ pub fn init() !Self {
         .context = context,
         .csra = csra,
         .ftra = ftra,
+        .ndra = ndra,
         .zig_texture = zig_texture,
     };
 }
 pub fn deinit(self: *Self) void {
+    self.ndra.deinit();
     self.ftra.deinit();
     self.csra.deinit();
     self.context.deinit();
