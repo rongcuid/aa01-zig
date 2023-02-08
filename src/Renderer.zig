@@ -15,7 +15,6 @@ const Self = @This();
 
 window: *c.SDL_Window,
 context: VulkanContext,
-csra: ClearScreenRenderActivity,
 ftra: FillTextureRenderActivity,
 ndra: NuklearDebugRenderActivity,
 zig_texture: *vk.Texture,
@@ -29,22 +28,16 @@ pub fn init() !Self {
     var context = try VulkanContext.init(std.heap.c_allocator, window);
     const zig_texture = try context.texture_manager.loadFileCached(
         "src/zig.bmp",
-        c.VK_IMAGE_USAGE_SAMPLED_BIT | c.VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+        c.VK_IMAGE_USAGE_SAMPLED_BIT,
         c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-    );
-
-    const csra = try ClearScreenRenderActivity.init(
-        context.device,
-        c.VkClearValue{
-            .color = c.VkClearColorValue{ .float32 = .{ 0.1, 0.2, 0.3, 1.0 } },
-        },
     );
     var ftra = try FillTextureRenderActivity.init(
         context.device,
         context.pipeline_cache,
         context.shader_manager,
     );
-    // try ftra.bindTexture(try zig_texture.createDefaultView());
+    // Debug background
+    try ftra.bindTexture(try zig_texture.createDefaultView());
     var ndra = try NuklearDebugRenderActivity.init(
         alloc,
         context.device,
@@ -53,13 +46,12 @@ pub fn init() !Self {
         context.texture_manager,
         context.shader_manager,
     );
-    try ftra.bindTexture(ndra.atlas_view);
+    // try ftra.bindTexture(ndra.atlas_view);
 
     // Return
     return Self{
         .window = window,
         .context = context,
-        .csra = csra,
         .ftra = ftra,
         .ndra = ndra,
         .zig_texture = zig_texture,
@@ -68,7 +60,6 @@ pub fn init() !Self {
 pub fn deinit(self: *Self) void {
     self.ndra.deinit();
     self.ftra.deinit();
-    self.csra.deinit();
     self.context.deinit();
     c.SDL_DestroyWindow(self.window);
     self.window = undefined;
@@ -79,7 +70,7 @@ pub fn render(self: *Self) !void {
     const acquired = try self.context.swapchain.acquire();
     // Prepare structures
     try self.beginRender(&acquired);
-    var cmds: [2]c.VkCommandBuffer = undefined;
+    var cmds: [1]c.VkCommandBuffer = undefined;
     const allocInfo = zeroInit(c.VkCommandBufferAllocateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool = acquired.pool,
@@ -94,8 +85,7 @@ pub fn render(self: *Self) !void {
         .extent = self.context.swapchain.extent,
     });
     // Run renderers
-    try self.csra.render(cmds[0], acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
-    try self.ftra.render(cmds[1], acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    try self.ftra.render(cmds[0], acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
     // Submit and present
     try self.submit(&acquired, &cmds);
     const resize = try self.context.swapchain.present(self.context.graphicsQueue);

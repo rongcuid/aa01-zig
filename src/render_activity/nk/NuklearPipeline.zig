@@ -146,9 +146,10 @@ pub fn deinit(self: *@This()) void {
 
 // Constants
 
-const Vertex = extern struct {
+pub const Vertex = extern struct {
     position: [2]f32,
     uv: [2]f32,
+    color: [4]u8,
 };
 
 /// The `Vertex` struct
@@ -172,6 +173,12 @@ const vertexInputAttributeDescriptions = [_]c.VkVertexInputAttributeDescription{
         .binding = 0,
         .format = c.VK_FORMAT_R32G32_SFLOAT,
         .offset = @offsetOf(Vertex, "uv"),
+    },
+    .{
+        .location = 2,
+        .binding = 0,
+        .format = c.VK_FORMAT_R8G8B8A8_UINT,
+        .offset = @offsetOf(Vertex, "color"),
     },
 };
 

@@ -20,6 +20,9 @@ atlas_texture: *vk.Texture,
 atlas_view: c.VkImageView,
 /// Owns
 pipeline: Pipeline,
+convert_cfg: c.nk_convert_config,
+/// References `self.atlas_texture`
+tex_null: c.nk_draw_null_texture,
 
 pub fn init(
     allocator: std.mem.Allocator,
@@ -49,12 +52,25 @@ pub fn init(
     );
     var atlas_view = try atlas_texture.createDefaultView();
     // Finish atlas
-    c.nk_font_atlas_end(&atlas, c.nk_handle_ptr(atlas_view), 0);
+    var tex_null: c.nk_draw_null_texture = undefined;
+    c.nk_font_atlas_end(&atlas, c.nk_handle_ptr(atlas_view), &tex_null);
     // Create context
     var context: c.nk_context = undefined;
     if (c.nk_init_default(&context, &font.*.handle) == 0) {
         @panic("Failed to initialize Nuklear");
     }
+    const convert_cfg = c.nk_convert_config{
+        .shape_AA = c.NK_ANTI_ALIASING_ON,
+        .line_AA = c.NK_ANTI_ALIASING_ON,
+        .vertex_layout = &VertexLayout,
+        .vertex_size = @sizeOf(Pipeline.Vertex),
+        .vertex_alignment = @alignOf(Pipeline.Vertex),
+        .circle_segment_count = 22,
+        .curve_segment_count = 22,
+        .arc_segment_count = 22,
+        .global_alpha = 1.0,
+        .tex_null = tex_null,
+    };
     // Build pipeline
     const pipeline = try Pipeline.init(device, cache, shader_manager);
     return @This(){
@@ -66,6 +82,8 @@ pub fn init(
         .atlas_texture = atlas_texture,
         .atlas_view = atlas_view,
         .pipeline = pipeline,
+        .tex_null = tex_null,
+        .convert_cfg = convert_cfg,
     };
 }
 
@@ -92,3 +110,28 @@ pub fn render(
     _ = out_layout;
     _ = out_area;
 }
+
+/// Vertex layout for Nuklear
+const VertexLayout = [_]c.nk_draw_vertex_layout_element{
+    .{
+        .attribute = c.NK_VERTEX_POSITION,
+        .format = c.NK_FORMAT_FLOAT,
+        .offset = @offsetOf(Pipeline.Vertex, "position"),
+    },
+    .{
+        .attribute = c.NK_VERTEX_TEXCOORD,
+        .format = c.NK_FORMAT_FLOAT,
+        .offset = @offsetOf(Pipeline.Vertex, "uv"),
+    },
+    .{
+        .attribute = c.NK_VERTEX_COLOR,
+        .format = c.NK_FORMAT_R8G8B8A8,
+        .offset = @offsetOf(Pipeline.Vertex, "color"),
+    },
+    // End
+    .{
+        .attribute = c.NK_VERTEX_ATTRIBUTE_COUNT,
+        .format = c.NK_FORMAT_COUNT,
+        .offset = 0,
+    },
+};
