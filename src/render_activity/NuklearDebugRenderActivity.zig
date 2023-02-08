@@ -7,6 +7,9 @@ const zeroInit = std.mem.zeroInit;
 
 const Pipeline = @import("nk/NuklearPipeline.zig");
 
+const MAX_VERTS = 1024;
+const MAX_INDEX = 1024;
+
 allocator: std.mem.Allocator,
 device: c.VkDevice,
 vma: c.VmaAllocator,
@@ -23,6 +26,14 @@ pipeline: Pipeline,
 convert_cfg: c.nk_convert_config,
 /// References `self.atlas_texture`
 tex_null: c.nk_draw_null_texture,
+/// Owns
+cmds: c.nk_buffer,
+/// Owns
+verts: c.nk_buffer,
+vertsBuffer: vk.Buffer,
+/// Owns
+idx: c.nk_buffer,
+idxBuffer: vk.Buffer,
 
 pub fn init(
     allocator: std.mem.Allocator,
@@ -71,6 +82,19 @@ pub fn init(
         .global_alpha = 1.0,
         .tex_null = tex_null,
     };
+    // Nuklear command buffer on CPU
+    var cmds: c.nk_buffer = undefined;
+    c.nk_buffer_init_default(&cmds);
+    // Vert and index buffer on device
+    const vertSize = MAX_VERTS * @sizeOf(Pipeline.Vertex);
+    const vertsBuffer = try vk.Buffer.initExclusiveSequentialMapped(vma, vertSize, c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+    const idxSize = MAX_INDEX * @sizeOf(c_short);
+    const idxBuffer = try vk.Buffer.initExclusiveSequentialMapped(vma, idxSize, c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    var verts: c.nk_buffer = undefined;
+    c.nk_buffer_init_fixed(&verts, vertsBuffer.allocInfo.pMappedData, vertSize);
+    var idx: c.nk_buffer = undefined;
+    c.nk_buffer_init_fixed(&idx, idxBuffer.allocInfo.pMappedData, idxSize);
+
     // Build pipeline
     const pipeline = try Pipeline.init(device, cache, shader_manager);
     return @This(){
@@ -82,12 +106,22 @@ pub fn init(
         .atlas_texture = atlas_texture,
         .atlas_view = atlas_view,
         .pipeline = pipeline,
-        .tex_null = tex_null,
         .convert_cfg = convert_cfg,
+        .tex_null = tex_null,
+        .cmds = cmds,
+        .verts = verts,
+        .vertsBuffer = vertsBuffer,
+        .idx = idx,
+        .idxBuffer = idxBuffer,
     };
 }
 
 pub fn deinit(self: *@This()) void {
+    c.nk_buffer_free(&self.cmds);
+    c.nk_buffer_free(&self.verts);
+    c.nk_buffer_free(&self.idx);
+    self.vertsBuffer.deinit();
+    self.idxBuffer.deinit();
     c.nk_font_atlas_clear(&self.atlas);
     c.nk_free(&self.context);
     vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
