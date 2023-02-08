@@ -74,11 +74,9 @@ pub fn destroy(self: *@This()) void {
 }
 
 /// Create a managed image view
-pub fn createView(
+pub fn createDefaultView(
     self: *@This(),
-    viewType: c.VkImageViewType,
     format: c.VkFormat,
-    subresourceRange: c.VkImageSubresourceRange,
 ) !c.VkImageView {
     var view: c.VkImageView = undefined;
     const ci = c.VkImageViewCreateInfo{
@@ -86,7 +84,7 @@ pub fn createView(
         .pNext = null,
         .flags = 0,
         .image = self.image,
-        .viewType = viewType,
+        .viewType = c.VK_IMAGE_VIEW_TYPE_2D,
         .format = format,
         .components = .{
             .r = c.VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -94,7 +92,13 @@ pub fn createView(
             .b = c.VK_COMPONENT_SWIZZLE_IDENTITY,
             .a = c.VK_COMPONENT_SWIZZLE_IDENTITY,
         },
-        .subresourceRange = subresourceRange,
+        .subresourceRange = .{
+            .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
     };
     vk.check(
         c.vkCreateImageView(self.device, &ci, null, &view),

@@ -44,17 +44,7 @@ pub fn init(
         c.VK_IMAGE_USAGE_SAMPLED_BIT,
         c.VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL_KHR,
     );
-    var atlas_view = try atlas_texture.createView(
-        c.VK_IMAGE_VIEW_TYPE_2D,
-        c.VK_FORMAT_R8G8B8A8_UINT,
-        c.VkImageSubresourceRange{
-            .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel = 0,
-            .levelCount = 1,
-            .baseArrayLayer = 0,
-            .layerCount = 1,
-        },
-    );
+    var atlas_view = try atlas_texture.createDefaultView(c.VK_FORMAT_R8G8B8A8_UINT);
     // Finish atlas
     c.nk_font_atlas_end(&atlas, c.nk_handle_ptr(atlas_view), 0);
     return @This(){
