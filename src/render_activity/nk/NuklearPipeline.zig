@@ -12,6 +12,10 @@ layout: c.VkPipelineLayout,
 descriptor_set_layouts: [setLayoutCIs.len]c.VkDescriptorSetLayout,
 /// Owns
 sampler: c.VkSampler,
+/// Owns
+vert: c.VkShaderModule,
+/// Owns
+frag: c.VkShaderModule,
 
 pub fn init(
     device: c.VkDevice,
@@ -136,6 +140,7 @@ pub fn deinit(self: *@This()) void {
     for (self.descriptor_set_layouts) |dsl| {
         c.vkDestroyDescriptorSetLayout(self.device, dsl, null);
     }
+    c.vkDestroyPipelineLayout(self.device, self.layout, null);
     c.vkDestroyPipeline(self.device, self.pipeline, null);
 }
 

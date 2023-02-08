@@ -49,7 +49,9 @@ pub fn init() !Self {
         alloc,
         context.device,
         context.vma,
+        context.pipeline_cache,
         context.texture_manager,
+        &context.shader_manager,
     );
     try ftra.bindTexture(ndra.atlas_view);
 

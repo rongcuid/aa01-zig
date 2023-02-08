@@ -21,7 +21,9 @@ pub fn init(
     allocator: std.mem.Allocator,
     device: c.VkDevice,
     vma: c.VmaAllocator,
+    cache: c.VkPipelineCache,
     texture_manager: *vk.TextureManager,
+    shader_manager: *vk.ShaderManager,
 ) !@This() {
     var img_width: c_int = 1024;
     var img_height: c_int = 1024;
@@ -46,19 +48,22 @@ pub fn init(
     var atlas_view = try atlas_texture.createDefaultView();
     // Finish atlas
     c.nk_font_atlas_end(&atlas, c.nk_handle_ptr(atlas_view), 0);
+    // Build pipeline
+    const pipeline = try Pipeline.init(device, cache, shader_manager);
     return @This(){
         .allocator = allocator,
         .device = device,
         .vma = vma,
         .atlas_texture = atlas_texture,
         .atlas_view = atlas_view,
-        .pipeline = undefined,
+        .pipeline = pipeline,
     };
 }
 
 pub fn deinit(self: *@This()) void {
+    vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
     self.atlas_texture.destroy();
-    // self.pipeline.deinit();
+    self.pipeline.deinit();
 }
 
 pub fn render(
