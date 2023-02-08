@@ -159,7 +159,7 @@ const VertexLayout = [_]c.nk_draw_vertex_layout_element{
     },
     .{
         .attribute = c.NK_VERTEX_COLOR,
-        .format = c.NK_FORMAT_R8G8B8A8,
+        .format = c.NK_FORMAT_R32G32B32A32_FLOAT,
         .offset = @offsetOf(Pipeline.Vertex, "color"),
     },
     // End

@@ -149,7 +149,7 @@ pub fn deinit(self: *@This()) void {
 pub const Vertex = extern struct {
     position: [2]f32,
     uv: [2]f32,
-    color: [4]u8,
+    color: [4]f32,
 };
 
 /// The `Vertex` struct
