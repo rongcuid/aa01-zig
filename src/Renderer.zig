@@ -87,6 +87,8 @@ pub fn render(self: *Self) !void {
     try begin_cmd(cmd);
     // Run renderers
     try self.ftra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    try self.ndra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    // End
     try end_cmd(cmd);
     // Submit and present
     try self.submit(&acquired, &[_]c.VkCommandBuffer{cmd});

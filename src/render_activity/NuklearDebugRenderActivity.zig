@@ -137,12 +137,104 @@ pub fn render(
     out_layout: c.VkImageLayout,
     out_area: c.VkRect2D,
 ) !void {
-    _ = self;
-    _ = cmd;
-    _ = out_image;
-    _ = out_view;
-    _ = out_layout;
-    _ = out_area;
+    const color_att_info = zeroInit(c.VkRenderingAttachmentInfoKHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
+        .imageView = out_view,
+        .imageLayout = c.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
+        .storeOp = c.VK_ATTACHMENT_STORE_OP_STORE,
+    });
+    const rendering_info = zeroInit(c.VkRenderingInfoKHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
+        .renderArea = out_area,
+        .layerCount = 1,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &color_att_info,
+    });
+    try self.beginTransition(cmd, out_image);
+    vk.PfnD(.vkCmdBeginRenderingKHR).on(self.device)(cmd, &rendering_info);
+    try setDynamicState(cmd, out_area);
+    vk.PfnD(.vkCmdEndRenderingKHR).on(self.device)(cmd);
+    try self.endTransition(cmd, out_image, out_layout);
+}
+
+fn beginTransition(
+    self: *@This(),
+    cmd: c.VkCommandBuffer,
+    image: c.VkImage,
+) !void {
+    const image_barrier = zeroInit(c.VkImageMemoryBarrier2KHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR,
+        .srcStageMask = c.VK_PIPELINE_STAGE_2_NONE_KHR,
+        .dstStageMask = c.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
+        .dstAccessMask = c.VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT_KHR,
+        .oldLayout = c.VK_IMAGE_LAYOUT_UNDEFINED,
+        .newLayout = c.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
+        .image = image,
+        .subresourceRange = c.VkImageSubresourceRange{
+            .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
+    });
+    const dependency = zeroInit(c.VkDependencyInfoKHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &image_barrier,
+    });
+    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.device)(
+        cmd,
+        &dependency,
+    );
+}
+
+fn setDynamicState(
+    cmd: c.VkCommandBuffer,
+    out_area: c.VkRect2D,
+) !void {
+    const viewport = c.VkViewport{
+        .x = 0,
+        .y = 0,
+        .width = @intToFloat(f32, out_area.extent.width),
+        .height = @intToFloat(f32, out_area.extent.height),
+        .minDepth = 0,
+        .maxDepth = 1,
+    };
+    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
+    c.vkCmdSetScissor(cmd, 0, 1, &out_area);
+}
+
+fn endTransition(
+    self: *@This(),
+    cmd: c.VkCommandBuffer,
+    image: c.VkImage,
+    out_layout: c.VkImageLayout,
+) !void {
+    if (out_layout == c.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR) {
+        return;
+    }
+    const image_barrier = zeroInit(c.VkImageMemoryBarrier2KHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR,
+        .srcStageMask = c.VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
+        .srcAccessMask = c.VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT_KHR,
+        .oldLayout = c.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR,
+        .newLayout = out_layout,
+        .image = image,
+        .subresourceRange = c.VkImageSubresourceRange{
+            .aspectMask = c.VK_IMAGE_ASPECT_COLOR_BIT,
+            .baseMipLevel = 0,
+            .levelCount = 1,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+        },
+    });
+    const dependency = zeroInit(c.VkDependencyInfoKHR, .{
+        .sType = c.VK_STRUCTURE_TYPE_DEPENDENCY_INFO_KHR,
+        .imageMemoryBarrierCount = 1,
+        .pImageMemoryBarriers = &image_barrier,
+    });
+    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.device)(cmd, &dependency);
 }
 
 /// Vertex layout for Nuklear
