@@ -242,24 +242,23 @@ fn beginTransition(
 }
 
 fn drawNuklear(self: *@This(), cmd: c.VkCommandBuffer) !void {
-    // Clear all descriptors
-    self.descriptor_sets.clearRetainingCapacity();
-    vk.check(
-        c.vkResetDescriptorPool(self.device, self.descriptor_pool, 0),
-        "Failed to reset descriptor pool",
-    );
+    // TODO: clear descriptor pool
     // Convert draw commands
     if (c.nk_convert(&self.context, &self.cmds, &self.verts, &self.idx, &self.convert_cfg) != c.NK_CONVERT_SUCCESS) {
         @panic("Failed to convert nk_commands");
     }
+    // Bind vertex and index buffers
+    const vOffsets: u64 = 0;
+    c.vkCmdBindVertexBuffers(cmd, 0, 1, &self.vertsBuffer.buffer, &vOffsets);
+    c.vkCmdBindIndexBuffer(cmd, self.idxBuffer.buffer, 0, c.VK_INDEX_TYPE_UINT16);
     // Draw commands
     var nk_cmd = c.nk__draw_begin(&self.context, &self.cmds);
     var index_offset: u32 = 0;
     while (nk_cmd != null) : (nk_cmd = c.nk__draw_next(nk_cmd, &self.cmds, &self.context)) {
         if (nk_cmd.*.elem_count == 0) continue;
-        const pTexture = @ptrCast(*c.VkImageView, @alignCast(@alignOf(c.VkImageView), nk_cmd.*.texture.ptr));
+        const texture = @ptrCast(c.VkImageView, nk_cmd.*.texture.ptr);
         // Bind texture descriptor set
-        const ds = try self.getDescriptorSet(pTexture.*);
+        const ds = try self.getDescriptorSet(texture);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.layout, 0, 1, &ds, 0, null);
         // Set scissor
         // TODO: scaling
