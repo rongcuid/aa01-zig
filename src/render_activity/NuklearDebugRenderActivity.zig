@@ -11,6 +11,10 @@ allocator: std.mem.Allocator,
 device: c.VkDevice,
 vma: c.VmaAllocator,
 /// Owns
+context: c.nk_context,
+/// Owns
+atlas: c.nk_font_atlas,
+/// Owns
 atlas_texture: *vk.Texture,
 /// Owns
 atlas_view: c.VkImageView,
@@ -31,12 +35,10 @@ pub fn init(
     c.nk_font_atlas_init_default(&atlas);
     c.nk_font_atlas_begin(&atlas);
     const font = c.nk_font_atlas_add_default(&atlas, 16, null);
-    _ = font;
     const img = @ptrCast(
         [*]const u8,
         c.nk_font_atlas_bake(&atlas, &img_width, &img_height, c.NK_FONT_ATLAS_RGBA32),
     );
-    defer c.nk_font_atlas_clear(&atlas);
     // Create the texture on device
     const atlas_texture = try texture_manager.loadPixels(
         img[0..@intCast(usize, img_width * img_height * 4)],
@@ -48,12 +50,19 @@ pub fn init(
     var atlas_view = try atlas_texture.createDefaultView();
     // Finish atlas
     c.nk_font_atlas_end(&atlas, c.nk_handle_ptr(atlas_view), 0);
+    // Create context
+    var context: c.nk_context = undefined;
+    if (c.nk_init_default(&context, &font.*.handle) == 0) {
+        @panic("Failed to initialize Nuklear");
+    }
     // Build pipeline
     const pipeline = try Pipeline.init(device, cache, shader_manager);
     return @This(){
         .allocator = allocator,
         .device = device,
         .vma = vma,
+        .context = context,
+        .atlas = atlas,
         .atlas_texture = atlas_texture,
         .atlas_view = atlas_view,
         .pipeline = pipeline,
@@ -61,6 +70,8 @@ pub fn init(
 }
 
 pub fn deinit(self: *@This()) void {
+    c.nk_font_atlas_clear(&self.atlas);
+    c.nk_free(&self.context);
     vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
     self.atlas_texture.destroy();
     self.pipeline.deinit();
