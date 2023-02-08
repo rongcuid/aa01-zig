@@ -9,6 +9,7 @@ const Pipeline = @import("nk/NuklearPipeline.zig");
 
 const MAX_VERTS = 1024;
 const MAX_INDEX = 1024;
+const MAX_TEXTURES = 128;
 
 allocator: std.mem.Allocator,
 device: c.VkDevice,
@@ -34,6 +35,14 @@ vertsBuffer: vk.Buffer,
 /// Owns
 idx: c.nk_buffer,
 idxBuffer: vk.Buffer,
+// Owns.
+descriptor_pool: c.VkDescriptorPool,
+// Owns. Clears every Frame
+descriptor_sets: DescriptorSetMap,
+// Owns.
+sampler: c.VkSampler,
+
+const DescriptorSetMap = std.AutoHashMap(c.VkImageView, c.VkDescriptorSet);
 
 pub fn init(
     allocator: std.mem.Allocator,
@@ -97,6 +106,42 @@ pub fn init(
 
     // Build pipeline
     const pipeline = try Pipeline.init(device, cache, shader_manager);
+    // Descriptors
+    var descriptor_pool: c.VkDescriptorPool = undefined;
+    const poolSizes = [_]c.VkDescriptorPoolSize{
+        .{
+            .type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = MAX_TEXTURES,
+        },
+    };
+    const poolCI = zeroInit(c.VkDescriptorPoolCreateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+        .maxSets = 1,
+        .poolSizeCount = @intCast(u32, poolSizes.len),
+        .pPoolSizes = &poolSizes,
+    });
+    vk.check(
+        c.vkCreateDescriptorPool(device, &poolCI, null, &descriptor_pool),
+        "Failed to create descriptor pool",
+    );
+    const descriptor_sets = DescriptorSetMap.init(allocator);
+    // Sampler
+    var sampler: c.VkSampler = undefined;
+    const samplerCI = zeroInit(c.VkSamplerCreateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+        .magFilter = c.VK_FILTER_NEAREST,
+        .minFilter = c.VK_FILTER_NEAREST,
+        .mipmapMode = c.VK_SAMPLER_MIPMAP_MODE_NEAREST,
+        .addressModeU = c.VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .addressModeV = c.VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .addressModeW = c.VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        .minLod = 0,
+        .maxLod = 1,
+    });
+    vk.check(
+        c.vkCreateSampler(device, &samplerCI, null, &sampler),
+        "Failed to create sampler",
+    );
     return @This(){
         .allocator = allocator,
         .device = device,
@@ -113,6 +158,9 @@ pub fn init(
         .vertsBuffer = vertsBuffer,
         .idx = idx,
         .idxBuffer = idxBuffer,
+        .descriptor_pool = descriptor_pool,
+        .descriptor_sets = descriptor_sets,
+        .sampler = sampler,
     };
 }
 
@@ -125,6 +173,9 @@ pub fn deinit(self: *@This()) void {
     c.nk_font_atlas_clear(&self.atlas);
     c.nk_free(&self.context);
     vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
+    self.descriptor_sets.deinit();
+    c.vkDestroyDescriptorPool(self.device, self.descriptor_pool, null);
+    c.vkDestroySampler(self.device, self.sampler, null);
     self.atlas_texture.destroy();
     self.pipeline.deinit();
 }
@@ -191,21 +242,41 @@ fn beginTransition(
 }
 
 fn drawNuklear(self: *@This(), cmd: c.VkCommandBuffer) !void {
+    // Clear all descriptors
+    self.descriptor_sets.clearRetainingCapacity();
+    vk.check(
+        c.vkResetDescriptorPool(self.device, self.descriptor_pool, 0),
+        "Failed to reset descriptor pool",
+    );
     // Convert draw commands
     if (c.nk_convert(&self.context, &self.cmds, &self.verts, &self.idx, &self.convert_cfg) != c.NK_CONVERT_SUCCESS) {
         @panic("Failed to convert nk_commands");
     }
     // Draw commands
     var nk_cmd = c.nk__draw_begin(&self.context, &self.cmds);
+    var index_offset: u32 = 0;
     while (nk_cmd != null) : (nk_cmd = c.nk__draw_next(nk_cmd, &self.cmds, &self.context)) {
         if (nk_cmd.*.elem_count == 0) continue;
-        // TODO
-        _ = cmd;
-        const texture = @ptrCast(*c.VkImageView, @alignCast(@alignOf(c.VkImageView), nk_cmd.*.texture.ptr));
-        _ = texture;
+        const texture = @ptrCast(*c.VkImageView, @alignCast(@alignOf(c.VkImageView), nk_cmd.*.texture.ptr)).*;
         // Bind texture descriptor set
+        const ds = try self.getDescriptorSet(texture);
+        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.layout, 0, 1, &ds, 0, null);
         // Set scissor
+        // TODO: scaling
+        const scissor = c.VkRect2D{
+            .offset = .{
+                .x = @floatToInt(i32, std.math.max(nk_cmd.*.clip_rect.x, 0.0)),
+                .y = @floatToInt(i32, std.math.max(nk_cmd.*.clip_rect.y, 0.0)),
+            },
+            .extent = .{
+                .width = @floatToInt(u32, nk_cmd.*.clip_rect.w),
+                .height = @floatToInt(u32, nk_cmd.*.clip_rect.h),
+            },
+        };
+        c.vkCmdSetScissor(cmd, 0, 1, &scissor);
         // Draw
+        c.vkCmdDrawIndexed(cmd, nk_cmd.*.elem_count, 1, index_offset, 0, 0);
+        index_offset += nk_cmd.*.elem_count;
     }
     // Finish recording, reset Nuklear state
     c.nk_clear(&self.context);
@@ -225,6 +296,42 @@ fn setDynamicState(
     };
     c.vkCmdSetViewport(cmd, 0, 1, &viewport);
     c.vkCmdSetScissor(cmd, 0, 1, &out_area);
+}
+
+/// Binds a texture to this renderer
+fn getDescriptorSet(self: *@This(), view: c.VkImageView) !c.VkDescriptorSet {
+    if (self.descriptor_sets.get(view)) |ds| {
+        return ds;
+    }
+    // Not cached, allocate new descriptor set
+    var ds: c.VkDescriptorSet = undefined;
+    const dsAI = zeroInit(c.VkDescriptorSetAllocateInfo, .{
+        .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = self.descriptor_pool,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &self.pipeline.descriptor_set_layouts[0],
+    });
+    vk.check(
+        c.vkAllocateDescriptorSets(self.device, &dsAI, &ds),
+        "Failed to allocate descriptor set",
+    );
+    // Write image to descriptor
+    const imageInfo = c.VkDescriptorImageInfo{
+        .sampler = self.sampler,
+        .imageView = view,
+        .imageLayout = c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    };
+    const write = zeroInit(c.VkWriteDescriptorSet, .{
+        .sType = c.VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = ds,
+        .dstBinding = 0,
+        .descriptorCount = 1,
+        .descriptorType = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .pImageInfo = &imageInfo,
+    });
+    c.vkUpdateDescriptorSets(self.device, 1, &write, 0, null);
+    try self.descriptor_sets.put(view, ds);
+    return ds;
 }
 
 fn endTransition(
