@@ -87,6 +87,9 @@ pub fn render(self: *Self) !void {
     try begin_cmd(cmd);
     // Run renderers
     try self.ftra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    // A test window
+    if (self.ndra.begin("Hello, world", .{ .x = 0.0, .y = 0.0, .w = 256.0, .h = 256.0 }, 0)) {}
+    self.ndra.end();
     try self.ndra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
     // End
     try end_cmd(cmd);

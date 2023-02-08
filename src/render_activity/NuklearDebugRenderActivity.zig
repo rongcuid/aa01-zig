@@ -257,9 +257,9 @@ fn drawNuklear(self: *@This(), cmd: c.VkCommandBuffer) !void {
     var index_offset: u32 = 0;
     while (nk_cmd != null) : (nk_cmd = c.nk__draw_next(nk_cmd, &self.cmds, &self.context)) {
         if (nk_cmd.*.elem_count == 0) continue;
-        const texture = @ptrCast(*c.VkImageView, @alignCast(@alignOf(c.VkImageView), nk_cmd.*.texture.ptr)).*;
+        const pTexture = @ptrCast(*c.VkImageView, @alignCast(@alignOf(c.VkImageView), nk_cmd.*.texture.ptr));
         // Bind texture descriptor set
-        const ds = try self.getDescriptorSet(texture);
+        const ds = try self.getDescriptorSet(pTexture.*);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.layout, 0, 1, &ds, 0, null);
         // Set scissor
         // TODO: scaling
@@ -390,3 +390,63 @@ const VertexLayout = [_]c.nk_draw_vertex_layout_element{
         .offset = 0,
     },
 };
+
+/// New window
+pub fn begin(self: *@This(), title: [:0]const u8, bounds: c.struct_nk_rect, flags: c.nk_flags) bool {
+    return c.nk_begin(&self.context, title, bounds, flags) == 1;
+}
+
+/// New window with separated title
+pub fn begin_titled(self: *@This(), name: [:0]const u8, title: [:0]u8, bounds: c.nk_rect, flags: c.nk_flags) bool {
+    return c.nk_begin_titled(&self.context, name, title, bounds, flags) == 1;
+}
+
+/// End window
+pub fn end(self: *@This()) void {
+    c.nk_end(&self.context);
+}
+
+/// Begin Nuklear input
+pub fn input_begin(self: *@This()) void {
+    c.nk_input_begin(&self.context);
+}
+
+/// Mouse movement
+pub fn input_mouse(self: *@This(), x: i32, y: i32) void {
+    c.nk_input_motion(&self.context, x, y);
+}
+
+/// Keyboard events
+pub fn input_key(self: *@This(), key: c.nk_keys, down: bool) void {
+    c.nk_input_key(&self.context, key, down);
+}
+
+/// Mouse button
+pub fn input_button(self: *@This(), btn: c.nk_buttons, x: i32, y: i32, down: bool) void {
+    c.nk_input_button(&self.context, btn, x, y, down);
+}
+
+/// Mouse scroll
+pub fn input_scroll(self: *@This(), val: c.nk_vec2) void {
+    c.nk_input_scroll(&self.context, val);
+}
+
+/// ASCII character
+pub fn input_char(self: *@This(), ch: u8) void {
+    c.nk_input_char(&self.context, ch);
+}
+
+/// Encoded Unicode rune
+pub fn input_glyph(self: *@This(), g: c.nk_glyph) void {
+    c.nk_input_glyph(&self.context, g);
+}
+
+/// Unicode rune
+pub fn input_unicode(self: *@This(), r: c.nk_rune) void {
+    c.nk_input_unicode(&self.context, r);
+}
+
+/// End Nuklear input
+pub fn input_end(self: *@This()) void {
+    c.nk_input_end(&self.context);
+}
