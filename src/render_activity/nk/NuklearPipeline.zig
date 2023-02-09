@@ -177,7 +177,7 @@ const vertexInputAttributeDescriptions = [_]c.VkVertexInputAttributeDescription{
     .{
         .location = 2,
         .binding = 0,
-        .format = c.VK_FORMAT_R8G8B8A8_UINT,
+        .format = c.VK_FORMAT_R32G32B32A32_SFLOAT,
         .offset = @offsetOf(Vertex, "color"),
     },
 };

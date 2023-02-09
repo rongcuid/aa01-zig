@@ -88,8 +88,7 @@ pub fn render(self: *Self) !void {
     // Run renderers
     try self.ftra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
     // A test window
-    if (self.ndra.begin("Hello, world", .{ .x = 0.0, .y = 0.0, .w = 256.0, .h = 256.0 }, 0)) {}
-    self.ndra.end();
+    self.drawTestWindow();
     try self.ndra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
     // End
     try end_cmd(cmd);
@@ -166,4 +165,22 @@ fn submit(self: *Self, acquired: *const vk.Swapchain.Frame, cmds: []c.VkCommandB
         vk.PfnD(.vkQueueSubmit2KHR).on(self.context.device)(self.context.graphicsQueue, 1, &submit_info, acquired.fence),
         "Failed to submit present queue",
     );
+}
+
+fn drawTestWindow(self: *@This()) void {
+    if (self.ndra.begin(
+        "Hello, world",
+        .{ .x = 50, .y = 50, .w = 640, .h = 360 },
+        c.NK_WINDOW_BORDER |
+            c.NK_WINDOW_MOVABLE |
+            c.NK_WINDOW_SCALABLE |
+            c.NK_WINDOW_MINIMIZABLE |
+            c.NK_WINDOW_TITLE,
+    )) {
+        c.nk_layout_row_static(&self.ndra.context, 30, 80, 1);
+        if (c.nk_button_label(&self.ndra.context, "button") == 1) {
+            std.debug.print("button pressed\n", .{});
+        }
+    }
+    self.ndra.end();
 }

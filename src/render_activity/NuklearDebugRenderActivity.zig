@@ -188,8 +188,6 @@ pub fn render(
     out_layout: c.VkImageLayout,
     out_area: c.VkRect2D,
 ) !void {
-    // TODO: Multiple frames in flight
-    vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait idle");
     const color_att_info = zeroInit(c.VkRenderingAttachmentInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
         .imageView = out_view,
@@ -205,8 +203,9 @@ pub fn render(
     });
     try self.beginTransition(cmd, out_image);
     vk.PfnD(.vkCmdBeginRenderingKHR).on(self.device)(cmd, &rendering_info);
-    try self.drawNuklear(cmd);
+    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.pipeline);
     try setDynamicState(cmd, out_area);
+    try self.drawNuklear(cmd);
     vk.PfnD(.vkCmdEndRenderingKHR).on(self.device)(cmd);
     try self.endTransition(cmd, out_image, out_layout);
 }

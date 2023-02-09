@@ -50,5 +50,7 @@ A secret game
 * [x] Configure Nuklear vertex buffer
 * [x] Refactor command buffer passing to render activities
 * [x] Add vertex color to shader
-* [ ] Refactor vertex/index buffer and descriptor sets
-* [ ] Render loop
+* [x] Hard code address transform
+* [ ] Hacks to force single-thread
+* [ ] Push constant to send transformation
+* [x] Render loop
