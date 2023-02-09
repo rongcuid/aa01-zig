@@ -165,6 +165,7 @@ pub fn init(
 }
 
 pub fn deinit(self: *@This()) void {
+    vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
     c.nk_buffer_free(&self.cmds);
     c.nk_buffer_free(&self.verts);
     c.nk_buffer_free(&self.idx);
@@ -172,7 +173,6 @@ pub fn deinit(self: *@This()) void {
     self.idxBuffer.deinit();
     c.nk_font_atlas_clear(&self.atlas);
     c.nk_free(&self.context);
-    vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
     self.descriptor_sets.deinit();
     c.vkDestroyDescriptorPool(self.device, self.descriptor_pool, null);
     c.vkDestroySampler(self.device, self.sampler, null);
@@ -188,6 +188,8 @@ pub fn render(
     out_layout: c.VkImageLayout,
     out_area: c.VkRect2D,
 ) !void {
+    // TODO: Multiple frames in flight
+    vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait idle");
     const color_att_info = zeroInit(c.VkRenderingAttachmentInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
         .imageView = out_view,
@@ -243,6 +245,9 @@ fn beginTransition(
 
 fn drawNuklear(self: *@This(), cmd: c.VkCommandBuffer) !void {
     // TODO: clear descriptor pool
+    c.nk_buffer_clear(&self.cmds);
+    c.nk_buffer_clear(&self.verts);
+    c.nk_buffer_clear(&self.idx);
     // Convert draw commands
     if (c.nk_convert(&self.context, &self.cmds, &self.verts, &self.idx, &self.convert_cfg) != c.NK_CONVERT_SUCCESS) {
         @panic("Failed to convert nk_commands");
