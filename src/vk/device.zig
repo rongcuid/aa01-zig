@@ -9,6 +9,7 @@ pub fn create_default_graphics(
     phys: c.VkPhysicalDevice,
     graphicsQueueFamilyIndex: u32,
 ) !c.VkDevice {
+    const portability = checkPortability(phys);
     const priority: f32 = 1.0;
     const queueCI = zeroInit(c.VkDeviceQueueCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -21,7 +22,9 @@ pub fn create_default_graphics(
     try extensions.append(c.VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     try extensions.append(c.VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
     try extensions.append(c.VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+    if (portability) {
         try extensions.append("VK_KHR_portability_subset");
+    }
     const layers = [_][*:0]const u8{
         "VK_LAYER_KHRONOS_validation",
         "VK_LAYER_KHRONOS_synchronization2",
@@ -50,4 +53,22 @@ pub fn create_default_graphics(
     var device: c.VkDevice = undefined;
     vk.check(c.vkCreateDevice(phys, &deviceCI, null, &device), "Failed to create VkDevice");
     return device;
+}
+
+fn checkPortability(phys: c.VkPhysicalDevice) bool {
+    var exts: [128]c.VkExtensionProperties = undefined;
+    var count: u32 = undefined;
+    vk.check(
+        c.vkEnumerateDeviceExtensionProperties(phys, null, &count, &exts),
+        "Failed to enumerate device extension properties count",
+    );
+    for (exts[0..count]) |ext| {
+        if (std.cstr.cmp(
+            @ptrCast([*:0]const u8, &ext.extensionName),
+            "VK_KHR_portability_subset",
+        ) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
