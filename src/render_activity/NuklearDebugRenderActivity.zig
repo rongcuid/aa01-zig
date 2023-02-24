@@ -7,7 +7,7 @@ const zeroInit = std.mem.zeroInit;
 
 const VulkanContext = @import("../VulkanContext.zig");
 
-const Frame = @import("ndra/Frame.zig");
+pub const Frame = @import("ndra/Frame.zig");
 const Pipeline = @import("ndra/Pipeline.zig");
 
 context: *VulkanContext,
@@ -27,15 +27,9 @@ tex_null: c.nk_draw_null_texture,
 /// Owns
 cmds: c.nk_buffer,
 /// Owns
-frames: Frames,
-
-/// Owns.
 sampler: c.VkSampler,
 
-const Frames = std.ArrayList(Frame);
-
 pub fn init(
-    allocator: std.mem.Allocator,
     context: *VulkanContext,
 ) !@This() {
     var img_width: c_int = 1024;
@@ -83,8 +77,6 @@ pub fn init(
 
     // Build pipeline
     const pipeline = try Pipeline.init(context.device, context.pipeline_cache, context.shader_manager);
-    // Frame list
-    const frames = Frames.init(allocator);
 
     // Sampler
     var sampler: c.VkSampler = undefined;
@@ -113,29 +105,23 @@ pub fn init(
         .convert_cfg = convert_cfg,
         .tex_null = tex_null,
         .cmds = cmds,
-        .frames = frames,
         .sampler = sampler,
     };
 }
 
 pub fn deinit(self: *@This()) void {
-    vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
+    vk.check(c.vkDeviceWaitIdle(self.context.*.device), "Failed to wait device idle");
     c.nk_buffer_free(&self.cmds);
-    c.nk_buffer_free(&self.verts);
-    c.nk_buffer_free(&self.idx);
-    self.vertsBuffer.deinit();
-    self.idxBuffer.deinit();
     c.nk_font_atlas_clear(&self.atlas);
-    c.nk_free(&self.context);
-    self.descriptor_sets.deinit();
-    c.vkDestroyDescriptorPool(self.device, self.descriptor_pool, null);
-    c.vkDestroySampler(self.device, self.sampler, null);
+    c.nk_free(&self.nk_context);
+    c.vkDestroySampler(self.context.*.device, self.sampler, null);
     self.atlas_texture.destroy();
     self.pipeline.deinit();
 }
 
 pub fn render(
     self: *@This(),
+    frame: *Frame,
     cmd: c.VkCommandBuffer,
     out_image: c.VkImage,
     out_view: c.VkImageView,
@@ -156,11 +142,11 @@ pub fn render(
         .pColorAttachments = &color_att_info,
     });
     try self.beginTransition(cmd, out_image);
-    vk.PfnD(.vkCmdBeginRenderingKHR).on(self.context.device)(cmd, &rendering_info);
+    vk.PfnD(.vkCmdBeginRenderingKHR).on(self.context.*.device)(cmd, &rendering_info);
     c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.pipeline);
     try setDynamicState(cmd, out_area);
-    try self.drawNuklear(cmd);
-    vk.PfnD(.vkCmdEndRenderingKHR).on(self.device)(cmd);
+    try self.drawNuklear(frame, cmd);
+    vk.PfnD(.vkCmdEndRenderingKHR).on(self.context.*.device)(cmd);
     try self.endTransition(cmd, out_image, out_layout);
 }
 
@@ -190,33 +176,37 @@ fn beginTransition(
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &image_barrier,
     });
-    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.context.device)(
+    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.context.*.device)(
         cmd,
         &dependency,
     );
 }
 
-fn drawNuklear(self: *@This(), cmd: c.VkCommandBuffer) !void {
+fn drawNuklear(
+    self: *@This(),
+    frame: *Frame,
+    cmd: c.VkCommandBuffer,
+) !void {
     // TODO: clear descriptor pool
     c.nk_buffer_clear(&self.cmds);
-    c.nk_buffer_clear(&self.verts);
-    c.nk_buffer_clear(&self.idx);
+    c.nk_buffer_clear(&frame.*.verts);
+    c.nk_buffer_clear(&frame.*.idx);
     // Convert draw commands
-    if (c.nk_convert(&self.context, &self.cmds, &self.verts, &self.idx, &self.convert_cfg) != c.NK_CONVERT_SUCCESS) {
+    if (c.nk_convert(&self.nk_context, &self.cmds, &frame.*.verts, &frame.*.idx, &self.convert_cfg) != c.NK_CONVERT_SUCCESS) {
         @panic("Failed to convert nk_commands");
     }
     // Bind vertex and index buffers
     const vOffsets: u64 = 0;
-    c.vkCmdBindVertexBuffers(cmd, 0, 1, &self.vertsBuffer.buffer, &vOffsets);
-    c.vkCmdBindIndexBuffer(cmd, self.idxBuffer.buffer, 0, c.VK_INDEX_TYPE_UINT16);
+    c.vkCmdBindVertexBuffers(cmd, 0, 1, &frame.*.vertsBuffer.buffer, &vOffsets);
+    c.vkCmdBindIndexBuffer(cmd, frame.*.idxBuffer.buffer, 0, c.VK_INDEX_TYPE_UINT16);
     // Draw commands
-    var nk_cmd = c.nk__draw_begin(&self.context, &self.cmds);
+    var nk_cmd = c.nk__draw_begin(&self.nk_context, &self.cmds);
     var index_offset: u32 = 0;
-    while (nk_cmd != null) : (nk_cmd = c.nk__draw_next(nk_cmd, &self.cmds, &self.context)) {
+    while (nk_cmd != null) : (nk_cmd = c.nk__draw_next(nk_cmd, &self.cmds, &self.nk_context)) {
         if (nk_cmd.*.elem_count == 0) continue;
         const texture = @ptrCast(c.VkImageView, nk_cmd.*.texture.ptr);
         // Bind texture descriptor set
-        const ds = try self.getDescriptorSet(texture);
+        const ds = try self.getDescriptorSet(frame, texture);
         c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.layout, 0, 1, &ds, 0, null);
         // Set scissor
         // TODO: scaling
@@ -236,7 +226,7 @@ fn drawNuklear(self: *@This(), cmd: c.VkCommandBuffer) !void {
         index_offset += nk_cmd.*.elem_count;
     }
     // Finish recording, reset Nuklear state
-    c.nk_clear(&self.context);
+    c.nk_clear(&self.nk_context);
 }
 
 fn setDynamicState(
@@ -256,20 +246,24 @@ fn setDynamicState(
 }
 
 /// Binds a texture to this renderer
-fn getDescriptorSet(self: *@This(), view: c.VkImageView) !c.VkDescriptorSet {
-    if (self.descriptor_sets.get(view)) |ds| {
+fn getDescriptorSet(
+    self: *@This(),
+    frame: *Frame,
+    view: c.VkImageView,
+) !c.VkDescriptorSet {
+    if (frame.*.descriptor_sets.get(view)) |ds| {
         return ds;
     }
     // Not cached, allocate new descriptor set
     var ds: c.VkDescriptorSet = undefined;
     const dsAI = zeroInit(c.VkDescriptorSetAllocateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = self.descriptor_pool,
+        .descriptorPool = frame.*.descriptor_pool,
         .descriptorSetCount = 1,
         .pSetLayouts = &self.pipeline.descriptor_set_layouts[0],
     });
     vk.check(
-        c.vkAllocateDescriptorSets(self.device, &dsAI, &ds),
+        c.vkAllocateDescriptorSets(self.context.*.device, &dsAI, &ds),
         "Failed to allocate descriptor set",
     );
     // Write image to descriptor
@@ -286,8 +280,8 @@ fn getDescriptorSet(self: *@This(), view: c.VkImageView) !c.VkDescriptorSet {
         .descriptorType = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         .pImageInfo = &imageInfo,
     });
-    c.vkUpdateDescriptorSets(self.device, 1, &write, 0, null);
-    try self.descriptor_sets.put(view, ds);
+    c.vkUpdateDescriptorSets(self.context.*.device, 1, &write, 0, null);
+    try frame.*.descriptor_sets.put(view, ds);
     return ds;
 }
 
@@ -320,7 +314,7 @@ fn endTransition(
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &image_barrier,
     });
-    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.device)(cmd, &dependency);
+    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.context.*.device)(cmd, &dependency);
 }
 
 /// Vertex layout for Nuklear
@@ -350,60 +344,60 @@ const VertexLayout = [_]c.nk_draw_vertex_layout_element{
 
 /// New window
 pub fn begin(self: *@This(), title: [:0]const u8, bounds: c.struct_nk_rect, flags: c.nk_flags) bool {
-    return c.nk_begin(&self.context, title, bounds, flags) == 1;
+    return c.nk_begin(&self.nk_context, title, bounds, flags) == 1;
 }
 
 /// New window with separated title
 pub fn begin_titled(self: *@This(), name: [:0]const u8, title: [:0]u8, bounds: c.nk_rect, flags: c.nk_flags) bool {
-    return c.nk_begin_titled(&self.context, name, title, bounds, flags) == 1;
+    return c.nk_begin_titled(&self.nk_context, name, title, bounds, flags) == 1;
 }
 
 /// End window
 pub fn end(self: *@This()) void {
-    c.nk_end(&self.context);
+    c.nk_end(&self.nk_context);
 }
 
 /// Begin Nuklear input
 pub fn input_begin(self: *@This()) void {
-    c.nk_input_begin(&self.context);
+    c.nk_input_begin(&self.nk_context);
 }
 
 /// Mouse movement
 pub fn input_mouse(self: *@This(), x: i32, y: i32) void {
-    c.nk_input_motion(&self.context, x, y);
+    c.nk_input_motion(&self.nk_context, x, y);
 }
 
 /// Keyboard events
 pub fn input_key(self: *@This(), key: c.nk_keys, down: bool) void {
-    c.nk_input_key(&self.context, key, down);
+    c.nk_input_key(&self.nk_context, key, down);
 }
 
 /// Mouse button
 pub fn input_button(self: *@This(), btn: c.nk_buttons, x: i32, y: i32, down: bool) void {
-    c.nk_input_button(&self.context, btn, x, y, down);
+    c.nk_input_button(&self.nk_context, btn, x, y, down);
 }
 
 /// Mouse scroll
 pub fn input_scroll(self: *@This(), val: c.nk_vec2) void {
-    c.nk_input_scroll(&self.context, val);
+    c.nk_input_scroll(&self.nk_context, val);
 }
 
 /// ASCII character
 pub fn input_char(self: *@This(), ch: u8) void {
-    c.nk_input_char(&self.context, ch);
+    c.nk_input_char(&self.nk_context, ch);
 }
 
 /// Encoded Unicode rune
 pub fn input_glyph(self: *@This(), g: c.nk_glyph) void {
-    c.nk_input_glyph(&self.context, g);
+    c.nk_input_glyph(&self.nk_context, g);
 }
 
 /// Unicode rune
 pub fn input_unicode(self: *@This(), r: c.nk_rune) void {
-    c.nk_input_unicode(&self.context, r);
+    c.nk_input_unicode(&self.nk_context, r);
 }
 
 /// End Nuklear input
 pub fn input_end(self: *@This()) void {
-    c.nk_input_end(&self.context);
+    c.nk_input_end(&self.nk_context);
 }

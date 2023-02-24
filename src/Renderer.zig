@@ -14,6 +14,7 @@ const Self = @This();
 window: *c.SDL_Window,
 context: *VulkanContext,
 ndra: NuklearDebugRenderActivity,
+ndra_frame: NuklearDebugRenderActivity.Frame,
 zig_texture: *vk.Texture,
 
 pub fn init() !Self {
@@ -31,29 +32,29 @@ pub fn init() !Self {
         c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     );
     // Debug background
-    var ndra = try NuklearDebugRenderActivity.init(
-        alloc,
-        context,
-    );
+    var ndra = try NuklearDebugRenderActivity.init(context);
+    const ndra_frame = try NuklearDebugRenderActivity.Frame.init(std.heap.c_allocator, context);
 
     // Return
     return Self{
         .window = window,
         .context = context,
         .ndra = ndra,
+        .ndra_frame = ndra_frame,
         .zig_texture = zig_texture,
     };
 }
 pub fn deinit(self: *Self) void {
+    self.ndra_frame.deinit();
     self.ndra.deinit();
-    self.context.destroy();
+    self.context.*.destroy();
     c.SDL_DestroyWindow(self.window);
     self.window = undefined;
 }
 
 pub fn render(self: *Self) !void {
     // Acquire swapchain image
-    const acquired = try self.context.swapchain.acquire();
+    const acquired = try self.context.*.swapchain.acquire();
     // Prepare structures
     try self.beginRender(&acquired);
     var cmd: c.VkCommandBuffer = undefined;
@@ -64,37 +65,37 @@ pub fn render(self: *Self) !void {
         .commandBufferCount = 1,
     });
     vk.check(
-        c.vkAllocateCommandBuffers(self.context.device, &allocInfo, &cmd),
+        c.vkAllocateCommandBuffers(self.context.*.device, &allocInfo, &cmd),
         "Failed to allocate command buffer",
     );
     const area = zeroInit(c.VkRect2D, .{
-        .extent = self.context.swapchain.extent,
+        .extent = self.context.*.swapchain.extent,
     });
     try begin_cmd(cmd);
     // Run renderers
     // A test window
     self.drawTestWindow();
-    try self.ndra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    try self.ndra.render(&self.ndra_frame, cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
     // End
     try end_cmd(cmd);
     // Submit and present
     try self.submit(&acquired, &[_]c.VkCommandBuffer{cmd});
-    const resize = try self.context.swapchain.present(self.context.graphicsQueue);
+    const resize = try self.context.*.swapchain.present(self.context.*.graphicsQueue);
     // TODO: resize swapchain
     _ = resize;
 }
 
 fn beginRender(self: *Self, acquired: *const vk.Swapchain.Frame) !void {
     vk.check(
-        c.vkWaitForFences(self.context.device, 1, &acquired.fence, 1, c.UINT64_MAX),
+        c.vkWaitForFences(self.context.*.device, 1, &acquired.fence, 1, c.UINT64_MAX),
         "Failed to wait for fences",
     );
     vk.check(
-        c.vkResetFences(self.context.device, 1, &acquired.fence),
+        c.vkResetFences(self.context.*.device, 1, &acquired.fence),
         "Failed to reset fences",
     );
     vk.check(
-        c.vkResetCommandPool(self.context.device, acquired.pool, 0),
+        c.vkResetCommandPool(self.context.*.device, acquired.pool, 0),
         "Failed to reset command pool",
     );
 }
@@ -147,7 +148,7 @@ fn submit(self: *Self, acquired: *const vk.Swapchain.Frame, cmds: []c.VkCommandB
         .pSignalSemaphoreInfos = &signal_info,
     });
     vk.check(
-        vk.PfnD(.vkQueueSubmit2KHR).on(self.context.device)(self.context.graphicsQueue, 1, &submit_info, acquired.fence),
+        vk.PfnD(.vkQueueSubmit2KHR).on(self.context.*.device)(self.context.*.graphicsQueue, 1, &submit_info, acquired.fence),
         "Failed to submit present queue",
     );
 }
