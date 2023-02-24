@@ -5,8 +5,6 @@ const assert = @import("std").debug.assert;
 const vk = @import("vk.zig");
 
 const VulkanContext = @import("VulkanContext.zig");
-const ClearScreenRenderActivity = @import("render_activity/ClearScreenRenderActivity.zig");
-const FillTextureRenderActivity = @import("render_activity/FillTextureRenderActivity.zig");
 const NuklearDebugRenderActivity = @import("render_activity/NuklearDebugRenderActivity.zig");
 
 var alloc = std.heap.c_allocator;
@@ -15,7 +13,6 @@ const Self = @This();
 
 window: *c.SDL_Window,
 context: VulkanContext,
-ftra: FillTextureRenderActivity,
 ndra: NuklearDebugRenderActivity,
 zig_texture: *vk.Texture,
 
@@ -26,18 +23,14 @@ pub fn init() !Self {
         return error.SDLInitializationFailed;
     };
     var context = try VulkanContext.init(std.heap.c_allocator, window);
+
+    // Zig logo
     const zig_texture = try context.texture_manager.loadFileCached(
         "src/zig.bmp",
         c.VK_IMAGE_USAGE_SAMPLED_BIT,
         c.VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     );
-    var ftra = try FillTextureRenderActivity.init(
-        context.device,
-        context.pipeline_cache,
-        context.shader_manager,
-    );
     // Debug background
-    try ftra.bindTexture(try zig_texture.createDefaultView());
     var ndra = try NuklearDebugRenderActivity.init(
         alloc,
         context.device,
@@ -46,20 +39,17 @@ pub fn init() !Self {
         context.texture_manager,
         context.shader_manager,
     );
-    // try ftra.bindTexture(ndra.atlas_view);
 
     // Return
     return Self{
         .window = window,
         .context = context,
-        .ftra = ftra,
         .ndra = ndra,
         .zig_texture = zig_texture,
     };
 }
 pub fn deinit(self: *Self) void {
     self.ndra.deinit();
-    self.ftra.deinit();
     self.context.deinit();
     c.SDL_DestroyWindow(self.window);
     self.window = undefined;
@@ -86,7 +76,6 @@ pub fn render(self: *Self) !void {
     });
     try begin_cmd(cmd);
     // Run renderers
-    try self.ftra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
     // A test window
     self.drawTestWindow();
     try self.ndra.render(cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
