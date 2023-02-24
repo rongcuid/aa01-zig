@@ -16,6 +16,8 @@ pub fn build(b: *std.build.Builder) !void {
         .optimize = optimize,
     });
     exe.addIncludePath("src");
+    // Volk
+    exe.addCSourceFile("src/volk.c", &[_][]const u8{});
     // Vulkan memory allocator
     exe.addCSourceFile("src/vma.cpp", &[_][]const u8{});
     // Nuklear

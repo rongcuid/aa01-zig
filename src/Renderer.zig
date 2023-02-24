@@ -74,7 +74,7 @@ pub fn render(self: *Self) !void {
         .commandBufferCount = 1,
     });
     vk.check(
-        c.vkAllocateCommandBuffers(self.context.device, &allocInfo, &cmd),
+        c.vkAllocateCommandBuffers.?(self.context.device, &allocInfo, &cmd),
         "Failed to allocate command buffer",
     );
     const area = zeroInit(c.VkRect2D, .{
@@ -96,15 +96,15 @@ pub fn render(self: *Self) !void {
 
 fn beginRender(self: *Self, acquired: *const vk.Swapchain.Frame) !void {
     vk.check(
-        c.vkWaitForFences(self.context.device, 1, &acquired.fence, 1, c.UINT64_MAX),
+        c.vkWaitForFences.?(self.context.device, 1, &acquired.fence, 1, c.UINT64_MAX),
         "Failed to wait for fences",
     );
     vk.check(
-        c.vkResetFences(self.context.device, 1, &acquired.fence),
+        c.vkResetFences.?(self.context.device, 1, &acquired.fence),
         "Failed to reset fences",
     );
     vk.check(
-        c.vkResetCommandPool(self.context.device, acquired.pool, 0),
+        c.vkResetCommandPool.?(self.context.device, acquired.pool, 0),
         "Failed to reset command pool",
     );
 }
@@ -115,14 +115,14 @@ fn begin_cmd(cmd: c.VkCommandBuffer) !void {
         .flags = c.VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
     });
     vk.check(
-        c.vkBeginCommandBuffer(cmd, &begin_info),
+        c.vkBeginCommandBuffer.?(cmd, &begin_info),
         "Failed to begin command buffer",
     );
 }
 
 fn end_cmd(cmd: c.VkCommandBuffer) !void {
     vk.check(
-        c.vkEndCommandBuffer(cmd),
+        c.vkEndCommandBuffer.?(cmd),
         "Failed to end command buffer",
     );
 }
@@ -157,7 +157,7 @@ fn submit(self: *Self, acquired: *const vk.Swapchain.Frame, cmds: []c.VkCommandB
         .pSignalSemaphoreInfos = &signal_info,
     });
     vk.check(
-        vk.PfnD(.vkQueueSubmit2KHR).on(self.context.device)(self.context.graphicsQueue, 1, &submit_info, acquired.fence),
+        c.vkQueueSubmit2KHR.?(self.context.graphicsQueue, 1, &submit_info, acquired.fence),
         "Failed to submit present queue",
     );
 }

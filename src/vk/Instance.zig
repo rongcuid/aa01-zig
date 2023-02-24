@@ -61,14 +61,18 @@ pub fn create(alloc: std.mem.Allocator, window: *c.SDL_Window) !*@This() {
         .flags = 0,
     });
     instanceCI.flags |= c.VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+    // Create instance
     var instance: c.VkInstance = undefined;
     vk.check(
-        c.vkCreateInstance(&instanceCI, null, &instance),
+        c.vkCreateInstance.?(&instanceCI, null, &instance),
         "Failed to create VkInstance",
     );
+    // Load procedure pointers
+    c.volkLoadInstance(instance);
+    // Create debug messenger
     var debugMessenger: c.VkDebugUtilsMessengerEXT = null;
     vk.check(
-        vk.PfnI(.vkCreateDebugUtilsMessengerEXT).on(instance)(instance, &debugCI, null, &debugMessenger),
+        c.vkCreateDebugUtilsMessengerEXT.?(instance, &debugCI, null, &debugMessenger),
         "Failed to create VkDebugUtilsMessengerEXT",
     );
     var p = try alloc.create(@This());
@@ -83,14 +87,14 @@ pub fn create(alloc: std.mem.Allocator, window: *c.SDL_Window) !*@This() {
 pub fn destroy(self: *@This()) void {
     std.log.debug("Instance.destroy()", .{});
     if (self.vkDebugMessenger) |m| {
-        vk.PfnI(.vkDestroyDebugUtilsMessengerEXT).on(self.vkInstance)(
+        c.vkDestroyDebugUtilsMessengerEXT.?(
             self.vkInstance,
             m,
             null,
         );
     }
     self.vkDebugMessenger = undefined;
-    c.vkDestroyInstance(self.vkInstance, null);
+    c.vkDestroyInstance.?(self.vkInstance, null);
     self.vkInstance = undefined;
     self.allocator.destroy(self);
 }
@@ -142,7 +146,7 @@ pub fn selectPhysicalDevice(self: *const @This()) !c.VkPhysicalDevice {
             .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
             .pNext = null,
         });
-        c.vkGetPhysicalDeviceProperties2(p, &props);
+        c.vkGetPhysicalDeviceProperties2.?(p, &props);
         if (props.properties.apiVersion < c.VK_API_VERSION_1_2) {
             std.log.info("[{s}] does not support Vulkan 1.2", .{props.properties.deviceName});
             continue;
@@ -161,7 +165,7 @@ pub fn selectPhysicalDevice(self: *const @This()) !c.VkPhysicalDevice {
             .sType = c.VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
             .pNext = &dynamic,
         });
-        c.vkGetPhysicalDeviceFeatures2(p, &features);
+        c.vkGetPhysicalDeviceFeatures2.?(p, &features);
         if (dynamic.dynamicRendering == 0) {
             std.log.info("[{s}] does not support dynamic rendering", .{props.properties.deviceName});
             continue;
@@ -179,13 +183,13 @@ pub fn selectPhysicalDevice(self: *const @This()) !c.VkPhysicalDevice {
 fn enumeratePhysicalDevices(alloc: std.mem.Allocator, instance: c.VkInstance) !std.ArrayList(c.VkPhysicalDevice) {
     var count: u32 = undefined;
     vk.check(
-        c.vkEnumeratePhysicalDevices(instance, &count, null),
+        c.vkEnumeratePhysicalDevices.?(instance, &count, null),
         "Failed to enumerate number of physical devices",
     );
     var phys = std.ArrayList(c.VkPhysicalDevice).init(alloc);
     try phys.appendNTimes(undefined, count);
     vk.check(
-        c.vkEnumeratePhysicalDevices(instance, &count, phys.items.ptr),
+        c.vkEnumeratePhysicalDevices.?(instance, &count, phys.items.ptr),
         "Failed to enumerate physical devices",
     );
     return phys;

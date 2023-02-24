@@ -23,63 +23,6 @@ pub fn check(result: c.VkResult, message: []const u8) void {
     }
 }
 
-/// Load a PFN from an instance.
-/// FIXME: currently assumes only one instance!
-pub fn PfnI(comptime pfn: @TypeOf(.enum_literal)) type {
-    const pfn_name = @tagName(pfn);
-    const pfn_typename = "PFN_" ++ pfn_name;
-    const T = @field(c, pfn_typename);
-    const P = @typeInfo(T).Optional.child;
-    return struct {
-        var use_instance: c.VkInstance = null;
-        var ptr: T = null;
-        /// Return an instance level pfn
-        pub fn on(instance: c.VkInstance) P {
-            return ptr orelse {
-                std.log.debug("Loading [{s}]", .{pfn_name});
-                if (use_instance == null) {
-                    use_instance = instance;
-                } else if (instance != use_instance) {
-                    @panic("TODO: Multiple instances!");
-                }
-                ptr = @ptrCast(
-                    T,
-                    c.vkGetInstanceProcAddr(instance, pfn_name),
-                );
-                return ptr orelse @panic("Pfn not found");
-            };
-        }
-    };
-}
-/// Load a PFN from an instance.
-/// FIXME: currently assumes only one device!
-pub fn PfnD(comptime pfn: @TypeOf(.enum_literal)) type {
-    const pfn_name = @tagName(pfn);
-    const pfn_typename = "PFN_" ++ pfn_name;
-    const T = @field(c, pfn_typename);
-    const P = @typeInfo(T).Optional.child;
-    return struct {
-        var use_device: c.VkDevice = null;
-        var ptr: T = null;
-        /// Return an device level pfn
-        pub fn on(dev: c.VkDevice) P {
-            return ptr orelse {
-                std.log.debug("Loading [{s}]", .{pfn_typename});
-                if (use_device == null) {
-                    use_device = dev;
-                } else if (dev != use_device) {
-                    @panic("TODO: Multiple devices!");
-                }
-                ptr = @ptrCast(
-                    T,
-                    c.vkGetDeviceProcAddr(dev, pfn_name),
-                );
-                return ptr orelse @panic("Pfn not found");
-            };
-        }
-    };
-}
-
 pub const Buffer = struct {
     vma: c.VmaAllocator,
     buffer: c.VkBuffer,

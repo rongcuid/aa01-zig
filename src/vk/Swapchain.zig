@@ -66,13 +66,13 @@ pub fn init(
     };
     var imageCount: u32 = undefined;
     vk.check(
-        c.vkGetSwapchainImagesKHR(device, swapchain, &imageCount, null),
+        c.vkGetSwapchainImagesKHR.?(device, swapchain, &imageCount, null),
         "Failed to get number of swapchain images",
     );
     var images = try std.ArrayList(c.VkImage).initCapacity(allocator, imageCount);
     images.appendNTimesAssumeCapacity(undefined, imageCount);
     vk.check(
-        c.vkGetSwapchainImagesKHR(device, swapchain, &imageCount, images.items.ptr),
+        c.vkGetSwapchainImagesKHR.?(device, swapchain, &imageCount, images.items.ptr),
         "Failed to get swapchain images",
     );
     const formats = try getFormats(allocator, phys, surface);
@@ -112,36 +112,36 @@ pub fn deinit(self: *Self) void {
     std.log.debug("Swapchain.deinit()", .{});
     std.log.debug("Destroying VkImageView", .{});
     for (self.pools.items) |p| {
-        c.vkDestroyCommandPool(self.vkDevice, p, null);
+        c.vkDestroyCommandPool.?(self.vkDevice, p, null);
     }
     for (self.fences.items) |f| {
-        c.vkDestroyFence(self.vkDevice, f, null);
+        c.vkDestroyFence.?(self.vkDevice, f, null);
     }
     for (self.acquisition_semaphores.items) |s| {
-        c.vkDestroySemaphore(self.vkDevice, s, null);
+        c.vkDestroySemaphore.?(self.vkDevice, s, null);
     }
     for (self.render_complete_semaphores.items) |s| {
-        c.vkDestroySemaphore(self.vkDevice, s, null);
+        c.vkDestroySemaphore.?(self.vkDevice, s, null);
     }
     for (self.views.items) |v| {
-        c.vkDestroyImageView(self.vkDevice, v, null);
+        c.vkDestroyImageView.?(self.vkDevice, v, null);
     }
     self.views.deinit();
     std.log.debug("Destroying VkSwapchainKHR [0x{x}]", .{@ptrToInt(self.vkSwapchain)});
-    c.vkDestroySwapchainKHR(self.vkDevice, self.vkSwapchain, null);
+    c.vkDestroySwapchainKHR.?(self.vkDevice, self.vkSwapchain, null);
     self.vkSwapchain = undefined;
 }
 
 fn getFormats(allocator: Allocator, phys: c.VkPhysicalDevice, surface: c.VkSurfaceKHR) !std.ArrayList(c.VkSurfaceFormatKHR) {
     var count: u32 = undefined;
     vk.check(
-        c.vkGetPhysicalDeviceSurfaceFormatsKHR(phys, surface, &count, null),
+        c.vkGetPhysicalDeviceSurfaceFormatsKHR.?(phys, surface, &count, null),
         "Failed to get number of surface formats",
     );
     var formats = try std.ArrayList(c.VkSurfaceFormatKHR).initCapacity(allocator, count);
     formats.appendNTimesAssumeCapacity(undefined, count);
     vk.check(
-        c.vkGetPhysicalDeviceSurfaceFormatsKHR(phys, surface, &count, formats.items.ptr),
+        c.vkGetPhysicalDeviceSurfaceFormatsKHR.?(phys, surface, &count, formats.items.ptr),
         "Failed to get number of surface formats",
     );
     return formats;
@@ -159,7 +159,7 @@ fn createSwapchain(
 ) !c.VkSwapchainKHR {
     var capabilities: c.VkSurfaceCapabilitiesKHR = undefined;
     vk.check(
-        c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(phys, surface, &capabilities),
+        c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR.?(phys, surface, &capabilities),
         "Failed to get physical device capabilities",
     );
     const formats = try getFormats(allocator, phys, surface);
@@ -190,7 +190,7 @@ fn createSwapchain(
     };
     var swapchain: c.VkSwapchainKHR = undefined;
     vk.check(
-        c.vkCreateSwapchainKHR(device, &swapchainCI, null, &swapchain),
+        c.vkCreateSwapchainKHR.?(device, &swapchainCI, null, &swapchain),
         "Failed to create VkSwapchainKHR",
     );
     return swapchain;
@@ -222,7 +222,7 @@ fn createImageView(
     });
     var view: c.VkImageView = undefined;
     vk.check(
-        c.vkCreateImageView(device, &ci, null, &view),
+        c.vkCreateImageView.?(device, &ci, null, &view),
         "Failed to create VkImageView",
     );
     return view;
@@ -234,7 +234,7 @@ fn createSemaphore(device: c.VkDevice) !c.VkSemaphore {
     });
     var semaphore: c.VkSemaphore = undefined;
     vk.check(
-        c.vkCreateSemaphore(device, &ci, null, &semaphore),
+        c.vkCreateSemaphore.?(device, &ci, null, &semaphore),
         "Failed to create semaphore",
     );
     return semaphore;
@@ -247,7 +247,7 @@ fn createFence(device: c.VkDevice) !c.VkFence {
     });
     var fence: c.VkFence = undefined;
     vk.check(
-        c.vkCreateFence(device, &ci, null, &fence),
+        c.vkCreateFence.?(device, &ci, null, &fence),
         "Failed to create fence",
     );
     return fence;
@@ -260,7 +260,7 @@ fn createCommandPool(device: c.VkDevice, queueFamilyIndex: u32) !c.VkCommandPool
     });
     var commandPool: c.VkCommandPool = undefined;
     vk.check(
-        c.vkCreateCommandPool(device, &ci, null, &commandPool),
+        c.vkCreateCommandPool.?(device, &ci, null, &commandPool),
         "Failed to create command pool",
     );
     return commandPool;
@@ -268,7 +268,7 @@ fn createCommandPool(device: c.VkDevice, queueFamilyIndex: u32) !c.VkCommandPool
 
 pub fn acquire(self: *@This()) !Frame {
     var frame: u32 = undefined;
-    const err = c.vkAcquireNextImageKHR(
+    const err = c.vkAcquireNextImageKHR.?(
         self.vkDevice,
         self.vkSwapchain,
         c.UINT64_MAX,
@@ -306,7 +306,7 @@ pub fn present(self: *@This(), queue: c.VkQueue) !bool {
         .pSwapchains = &self.vkSwapchain,
         .pImageIndices = &self.current_frame,
     });
-    const err = c.vkQueuePresentKHR(queue, &present_info);
+    const err = c.vkQueuePresentKHR.?(queue, &present_info);
     switch (err) {
         c.VK_SUCCESS => {},
         c.VK_SUBOPTIMAL_KHR => resize = false,

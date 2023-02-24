@@ -60,7 +60,7 @@ pub fn init(allocator: std.mem.Allocator, context: *VulkanContext) !@This() {
         .pPoolSizes = &poolSizes,
     });
     vk.check(
-        c.vkCreateDescriptorPool(context.device, &poolCI, null, &descriptor_pool),
+        c.vkCreateDescriptorPool.?(context.device, &poolCI, null, &descriptor_pool),
         "Failed to create descriptor pool",
     );
     const descriptor_sets = DescriptorSetMap.init(allocator);
@@ -77,11 +77,11 @@ pub fn init(allocator: std.mem.Allocator, context: *VulkanContext) !@This() {
 }
 
 pub fn deinit(self: *@This()) void {
-    vk.check(c.vkDeviceWaitIdle(self.context.device), "Failed to wait device idle");
+    vk.check(c.vkDeviceWaitIdle.?(self.context.device), "Failed to wait device idle");
     c.nk_buffer_free(&self.verts);
     c.nk_buffer_free(&self.idx);
     self.vertsBuffer.deinit();
     self.idxBuffer.deinit();
     self.descriptor_sets.deinit();
-    c.vkDestroyDescriptorPool(self.context.device, self.descriptor_pool, null);
+    c.vkDestroyDescriptorPool.?(self.context.device, self.descriptor_pool, null);
 }

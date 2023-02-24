@@ -51,7 +51,7 @@ pub fn create_default_graphics(
         .ppEnabledLayerNames = &layers,
     });
     var device: c.VkDevice = undefined;
-    vk.check(c.vkCreateDevice(phys, &deviceCI, null, &device), "Failed to create VkDevice");
+    vk.check(c.vkCreateDevice.?(phys, &deviceCI, null, &device), "Failed to create VkDevice");
     return device;
 }
 
@@ -59,7 +59,7 @@ fn checkPortability(phys: c.VkPhysicalDevice) bool {
     var exts: [128]c.VkExtensionProperties = undefined;
     var count: u32 = undefined;
     vk.check(
-        c.vkEnumerateDeviceExtensionProperties(phys, null, &count, &exts),
+        c.vkEnumerateDeviceExtensionProperties.?(phys, null, &count, &exts),
         "Failed to enumerate device extension properties count",
     );
     for (exts[0..count]) |ext| {

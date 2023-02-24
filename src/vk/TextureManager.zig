@@ -35,7 +35,7 @@ pub fn create(
         .queueFamilyIndex = transfer_qfi,
     });
     vk.check(
-        c.vkCreateCommandPool(device, &poolCI, null, &pool),
+        c.vkCreateCommandPool.?(device, &poolCI, null, &pool),
         "Failed to create command pool",
     );
 
@@ -59,7 +59,7 @@ pub fn destroy(self: *@This()) void {
     while (iter.next()) |texture| {
         texture.*.destroy();
     }
-    c.vkDestroyCommandPool(self.device, self.pool, null);
+    c.vkDestroyCommandPool.?(self.device, self.pool, null);
     self.allocator.destroy(self);
 }
 
@@ -131,10 +131,10 @@ pub fn loadPixels(
         .commandBufferCount = 1,
     };
     vk.check(
-        c.vkAllocateCommandBuffers(self.device, &cmdAI, &cmd),
+        c.vkAllocateCommandBuffers.?(self.device, &cmdAI, &cmd),
         "Failed to allocate command buffer",
     );
-    defer c.vkFreeCommandBuffers(self.device, self.pool, 1, &cmd);
+    defer c.vkFreeCommandBuffers.?(self.device, self.pool, 1, &cmd);
     // Create staging buffer
     const staging = try self.createStagingBuffer(pixels.len);
     defer c.vmaDestroyBuffer(self.vma, staging.buffer, staging.alloc);
@@ -161,9 +161,9 @@ pub fn loadPixels(
         },
     });
     // Begin recording
-    vk.check(c.vkBeginCommandBuffer(cmd, &beginInfo), "Failed to begin recording");
+    vk.check(c.vkBeginCommandBuffer.?(cmd, &beginInfo), "Failed to begin recording");
     self.recordUploadTransitionIn(texture, cmd);
-    c.vkCmdCopyBufferToImage(
+    c.vkCmdCopyBufferToImage.?(
         cmd,
         staging.buffer,
         texture.image,
@@ -172,7 +172,7 @@ pub fn loadPixels(
         &region,
     );
     self.recordUploadTransitionOut(texture, cmd, dst_layout);
-    vk.check(c.vkEndCommandBuffer(cmd), "Failed to end recording");
+    vk.check(c.vkEndCommandBuffer.?(cmd), "Failed to end recording");
     // Submit to queue
     const cmdInfo = zeroInit(c.VkCommandBufferSubmitInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO_KHR,
@@ -184,10 +184,10 @@ pub fn loadPixels(
         .pCommandBufferInfos = &cmdInfo,
     });
     vk.check(
-        vk.PfnD(.vkQueueSubmit2KHR).on(self.device)(self.queue, 1, &submit, null),
+        c.vkQueueSubmit2KHR.?(self.queue, 1, &submit, null),
         "Failed to submit queue",
     );
-    vk.check(c.vkQueueWaitIdle(self.queue), "Failed to wait queue idle");
+    vk.check(c.vkQueueWaitIdle.?(self.queue), "Failed to wait queue idle");
     return texture;
 }
 
@@ -276,6 +276,7 @@ fn recordLayoutTransition(
     srcQueueFamilyIndex: u32,
     dstQueueFamilyIndex: u32,
 ) void {
+    _ = self;
     const barrier = c.VkImageMemoryBarrier2KHR{
         .sType = c.VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR,
         .pNext = null,
@@ -304,5 +305,5 @@ fn recordLayoutTransition(
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &barrier,
     });
-    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.device)(cmd, &depInfo);
+    c.vkCmdPipelineBarrier2KHR.?(cmd, &depInfo);
 }

@@ -47,7 +47,7 @@ pub fn create(allocator: std.mem.Allocator, device: c.VkDevice) !*@This() {
 pub fn destroy(self: *@This()) void {
     var iter = self.shaders.valueIterator();
     while (iter.next()) |pShader| {
-        c.vkDestroyShaderModule(self.device, pShader.*, null);
+        c.vkDestroyShaderModule.?(self.device, pShader.*, null);
     }
     self.shaders.deinit();
     c.shaderc_compiler_release(self.compiler);
@@ -97,7 +97,7 @@ pub fn loadDefault(self: *@This(), path: [:0]const u8, kind: ShaderKind) !c.VkSh
     };
     var shader: c.VkShaderModule = undefined;
     vk.check(
-        c.vkCreateShaderModule(self.device, &ci, null, &shader),
+        c.vkCreateShaderModule.?(self.device, &ci, null, &shader),
         "Failed to create shader module",
     );
     // Store and return

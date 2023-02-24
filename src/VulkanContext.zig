@@ -29,6 +29,7 @@ texture_manager: *vk.TextureManager,
 ////// Methods
 
 pub fn create(alloc: Allocator, window: *c.SDL_Window) !*@This() {
+    vk.check(c.volkInitialize(), "Failed to initialize volk");
     const instance = try vk.Instance.create(alloc, window);
     // Enumerate and selct physical devices
     const physDevice = try instance.selectPhysicalDevice();
@@ -37,7 +38,7 @@ pub fn create(alloc: Allocator, window: *c.SDL_Window) !*@This() {
     const gqIndex = try getGraphicsQueueFamilyIndex(physDevice);
     const device = try vk.device.create_default_graphics(physDevice, gqIndex);
     var queue: c.VkQueue = undefined;
-    c.vkGetDeviceQueue(device, gqIndex, 0, &queue);
+    c.vkGetDeviceQueue.?(device, gqIndex, 0, &queue);
     // Pipeline cache
     var pipeline_cache: c.VkPipelineCache = undefined;
     const pipelineCacheCI = c.VkPipelineCacheCreateInfo{
@@ -48,19 +49,44 @@ pub fn create(alloc: Allocator, window: *c.SDL_Window) !*@This() {
         .pInitialData = null,
     };
     vk.check(
-        c.vkCreatePipelineCache(device, &pipelineCacheCI, null, &pipeline_cache),
+        c.vkCreatePipelineCache.?(device, &pipelineCacheCI, null, &pipeline_cache),
         "Failed to create pipeline cache",
     );
     // VMA
-    const vkFuncs = zeroInit(c.VmaVulkanFunctions, .{
-        .vkGetInstanceProcAddr = &c.vkGetInstanceProcAddr,
-        .vkGetDeviceProcAddr = &c.vkGetDeviceProcAddr,
-    });
+    const vkFuncs = c.VmaVulkanFunctions{
+        .vkGetInstanceProcAddr = c.vkGetInstanceProcAddr.?,
+        .vkGetDeviceProcAddr = c.vkGetDeviceProcAddr.?,
+        .vkGetPhysicalDeviceProperties = c.vkGetPhysicalDeviceProperties.?,
+        .vkGetPhysicalDeviceMemoryProperties = c.vkGetPhysicalDeviceMemoryProperties.?,
+        .vkAllocateMemory = c.vkAllocateMemory.?,
+        .vkFreeMemory = c.vkFreeMemory.?,
+        .vkMapMemory = c.vkMapMemory.?,
+        .vkUnmapMemory = c.vkUnmapMemory.?,
+        .vkFlushMappedMemoryRanges = c.vkFlushMappedMemoryRanges.?,
+        .vkInvalidateMappedMemoryRanges = c.vkInvalidateMappedMemoryRanges.?,
+        .vkBindBufferMemory = c.vkBindBufferMemory.?,
+        .vkBindImageMemory = c.vkBindImageMemory.?,
+        .vkGetBufferMemoryRequirements = c.vkGetBufferMemoryRequirements.?,
+        .vkGetImageMemoryRequirements = c.vkGetImageMemoryRequirements.?,
+        .vkCreateBuffer = c.vkCreateBuffer.?,
+        .vkDestroyBuffer = c.vkDestroyBuffer.?,
+        .vkCreateImage = c.vkCreateImage.?,
+        .vkDestroyImage = c.vkDestroyImage.?,
+        .vkCmdCopyBuffer = c.vkCmdCopyBuffer.?,
+        .vkGetBufferMemoryRequirements2KHR = c.vkGetBufferMemoryRequirements2.?,
+        .vkGetImageMemoryRequirements2KHR = c.vkGetImageMemoryRequirements2.?,
+        .vkBindBufferMemory2KHR = c.vkBindBufferMemory2.?,
+        .vkBindImageMemory2KHR = c.vkBindImageMemory2.?,
+        .vkGetPhysicalDeviceMemoryProperties2KHR = c.vkGetPhysicalDeviceMemoryProperties2.?,
+        .vkGetDeviceBufferMemoryRequirements = null,
+        .vkGetDeviceImageMemoryRequirements = null,
+    };
     const vmaCI = zeroInit(c.VmaAllocatorCreateInfo, .{
         .physicalDevice = physDevice,
         .device = device,
         .instance = instance.vkInstance,
         .pVulkanFunctions = &vkFuncs,
+        .vulkanApiVersion = c.VK_API_VERSION_1_2,
     });
     var vma: c.VmaAllocator = undefined;
     vk.check(
@@ -102,17 +128,17 @@ pub fn create(alloc: Allocator, window: *c.SDL_Window) !*@This() {
 }
 pub fn destroy(self: *@This()) void {
     std.log.debug("VulkanContext.deinit()", .{});
-    vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
+    vk.check(c.vkDeviceWaitIdle.?(self.device), "Failed to wait device idle");
     self.shader_manager.destroy();
     self.texture_manager.destroy();
     self.swapchain.deinit();
-    c.vkDestroySurfaceKHR(self.instance.vkInstance, self.surface, null);
+    c.vkDestroySurfaceKHR.?(self.instance.vkInstance, self.surface, null);
     self.surface = undefined;
     c.vmaDestroyAllocator(self.vma);
     self.vma = undefined;
-    c.vkDestroyPipelineCache(self.device, self.pipeline_cache, null);
+    c.vkDestroyPipelineCache.?(self.device, self.pipeline_cache, null);
     self.pipeline_cache = undefined;
-    c.vkDestroyDevice(self.device, null);
+    c.vkDestroyDevice.?(self.device, null);
     self.instance.destroy();
     self.allocator.destroy(self);
 }
@@ -121,9 +147,9 @@ pub fn destroy(self: *@This()) void {
 
 fn getGraphicsQueueFamilyIndex(phys: c.VkPhysicalDevice) !u32 {
     var count: u32 = undefined;
-    c.vkGetPhysicalDeviceQueueFamilyProperties(phys, &count, null);
+    c.vkGetPhysicalDeviceQueueFamilyProperties.?(phys, &count, null);
     var props = try std.BoundedArray(c.VkQueueFamilyProperties, 16).init(count);
-    c.vkGetPhysicalDeviceQueueFamilyProperties(phys, &count, &props.buffer);
+    c.vkGetPhysicalDeviceQueueFamilyProperties.?(phys, &count, &props.buffer);
     for (props.buffer, 0..) |p, i| {
         if (p.queueFlags & c.VK_QUEUE_GRAPHICS_BIT != 0) {
             return @intCast(u32, i);

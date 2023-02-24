@@ -62,7 +62,7 @@ pub fn init(
     var setLayouts: [setLayoutCIs.len]c.VkDescriptorSetLayout = undefined;
     for (setLayoutCIs, 0..) |ci, i| {
         vk.check(
-            c.vkCreateDescriptorSetLayout(device, &ci, null, &setLayouts[i]),
+            c.vkCreateDescriptorSetLayout.?(device, &ci, null, &setLayouts[i]),
             "Failed to create descriptor set layout",
         );
     }
@@ -78,7 +78,7 @@ pub fn init(
         .pPushConstantRanges = null,
     };
     vk.check(
-        c.vkCreatePipelineLayout(device, &layoutCI, null, &layout),
+        c.vkCreatePipelineLayout.?(device, &layoutCI, null, &layout),
         "Failed to create pipeline layout",
     );
     // Pipeline
@@ -104,7 +104,7 @@ pub fn init(
         .basePipelineIndex = 0,
     });
     vk.check(
-        c.vkCreateGraphicsPipelines(device, cache, 1, &pipelineCI, null, &pipeline),
+        c.vkCreateGraphicsPipelines.?(device, cache, 1, &pipelineCI, null, &pipeline),
         "Failed to create pipeline",
     );
     // Sampler
@@ -121,7 +121,7 @@ pub fn init(
         .maxLod = 1,
     });
     vk.check(
-        c.vkCreateSampler(device, &samplerCI, null, &sampler),
+        c.vkCreateSampler.?(device, &samplerCI, null, &sampler),
         "Failed to create sampler",
     );
     return @This(){
@@ -136,12 +136,12 @@ pub fn init(
 }
 
 pub fn deinit(self: *@This()) void {
-    c.vkDestroySampler(self.device, self.sampler, null);
+    c.vkDestroySampler.?(self.device, self.sampler, null);
     for (self.descriptor_set_layouts) |dsl| {
-        c.vkDestroyDescriptorSetLayout(self.device, dsl, null);
+        c.vkDestroyDescriptorSetLayout.?(self.device, dsl, null);
     }
-    c.vkDestroyPipelineLayout(self.device, self.layout, null);
-    c.vkDestroyPipeline(self.device, self.pipeline, null);
+    c.vkDestroyPipelineLayout.?(self.device, self.layout, null);
+    c.vkDestroyPipeline.?(self.device, self.pipeline, null);
 }
 
 // Constants

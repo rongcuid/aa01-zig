@@ -92,7 +92,7 @@ pub fn init(
         .maxLod = 1,
     });
     vk.check(
-        c.vkCreateSampler(context.device, &samplerCI, null, &sampler),
+        c.vkCreateSampler.?(context.device, &samplerCI, null, &sampler),
         "Failed to create sampler",
     );
     return @This(){
@@ -110,11 +110,11 @@ pub fn init(
 }
 
 pub fn deinit(self: *@This()) void {
-    vk.check(c.vkDeviceWaitIdle(self.context.device), "Failed to wait device idle");
+    vk.check(c.vkDeviceWaitIdle.?(self.context.device), "Failed to wait device idle");
     c.nk_buffer_free(&self.cmds);
     c.nk_font_atlas_clear(&self.atlas);
     c.nk_free(&self.nk_context);
-    c.vkDestroySampler(self.context.device, self.sampler, null);
+    c.vkDestroySampler.?(self.context.device, self.sampler, null);
     self.atlas_texture.destroy();
     self.pipeline.deinit();
 }
@@ -142,11 +142,11 @@ pub fn render(
         .pColorAttachments = &color_att_info,
     });
     try self.beginTransition(cmd, out_image);
-    vk.PfnD(.vkCmdBeginRenderingKHR).on(self.context.device)(cmd, &rendering_info);
-    c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.pipeline);
+    c.vkCmdBeginRenderingKHR.?(cmd, &rendering_info);
+    c.vkCmdBindPipeline.?(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.pipeline);
     try setDynamicState(cmd, out_area);
     try self.drawNuklear(frame, cmd);
-    vk.PfnD(.vkCmdEndRenderingKHR).on(self.context.device)(cmd);
+    c.vkCmdEndRenderingKHR.?(cmd);
     try self.endTransition(cmd, out_image, out_layout);
 }
 
@@ -155,6 +155,7 @@ fn beginTransition(
     cmd: c.VkCommandBuffer,
     image: c.VkImage,
 ) !void {
+    _ = self;
     const image_barrier = zeroInit(c.VkImageMemoryBarrier2KHR, .{
         .sType = c.VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2_KHR,
         .srcStageMask = c.VK_PIPELINE_STAGE_2_NONE_KHR,
@@ -176,7 +177,7 @@ fn beginTransition(
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &image_barrier,
     });
-    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.context.device)(
+    c.vkCmdPipelineBarrier2KHR.?(
         cmd,
         &dependency,
     );
@@ -197,8 +198,8 @@ fn drawNuklear(
     }
     // Bind vertex and index buffers
     const vOffsets: u64 = 0;
-    c.vkCmdBindVertexBuffers(cmd, 0, 1, &frame.vertsBuffer.buffer, &vOffsets);
-    c.vkCmdBindIndexBuffer(cmd, frame.idxBuffer.buffer, 0, c.VK_INDEX_TYPE_UINT16);
+    c.vkCmdBindVertexBuffers.?(cmd, 0, 1, &frame.vertsBuffer.buffer, &vOffsets);
+    c.vkCmdBindIndexBuffer.?(cmd, frame.idxBuffer.buffer, 0, c.VK_INDEX_TYPE_UINT16);
     // Draw commands
     var nk_cmd = c.nk__draw_begin(&self.nk_context, &self.cmds);
     var index_offset: u32 = 0;
@@ -207,7 +208,7 @@ fn drawNuklear(
         const texture = @ptrCast(c.VkImageView, nk_cmd.*.texture.ptr);
         // Bind texture descriptor set
         const ds = try self.getDescriptorSet(frame, texture);
-        c.vkCmdBindDescriptorSets(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.layout, 0, 1, &ds, 0, null);
+        c.vkCmdBindDescriptorSets.?(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.layout, 0, 1, &ds, 0, null);
         // Set scissor
         // TODO: scaling
         const scissor = c.VkRect2D{
@@ -220,9 +221,9 @@ fn drawNuklear(
                 .height = @floatToInt(u32, nk_cmd.*.clip_rect.h),
             },
         };
-        c.vkCmdSetScissor(cmd, 0, 1, &scissor);
+        c.vkCmdSetScissor.?(cmd, 0, 1, &scissor);
         // Draw
-        c.vkCmdDrawIndexed(cmd, nk_cmd.*.elem_count, 1, index_offset, 0, 0);
+        c.vkCmdDrawIndexed.?(cmd, nk_cmd.*.elem_count, 1, index_offset, 0, 0);
         index_offset += nk_cmd.*.elem_count;
     }
     // Finish recording, reset Nuklear state
@@ -241,8 +242,8 @@ fn setDynamicState(
         .minDepth = 0,
         .maxDepth = 1,
     };
-    c.vkCmdSetViewport(cmd, 0, 1, &viewport);
-    c.vkCmdSetScissor(cmd, 0, 1, &out_area);
+    c.vkCmdSetViewport.?(cmd, 0, 1, &viewport);
+    c.vkCmdSetScissor.?(cmd, 0, 1, &out_area);
 }
 
 /// Binds a texture to this renderer
@@ -263,7 +264,7 @@ fn getDescriptorSet(
         .pSetLayouts = &self.pipeline.descriptor_set_layouts[0],
     });
     vk.check(
-        c.vkAllocateDescriptorSets(self.context.device, &dsAI, &ds),
+        c.vkAllocateDescriptorSets.?(self.context.device, &dsAI, &ds),
         "Failed to allocate descriptor set",
     );
     // Write image to descriptor
@@ -280,7 +281,7 @@ fn getDescriptorSet(
         .descriptorType = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         .pImageInfo = &imageInfo,
     });
-    c.vkUpdateDescriptorSets(self.context.device, 1, &write, 0, null);
+    c.vkUpdateDescriptorSets.?(self.context.device, 1, &write, 0, null);
     try frame.descriptor_sets.put(view, ds);
     return ds;
 }
@@ -291,6 +292,7 @@ fn endTransition(
     image: c.VkImage,
     out_layout: c.VkImageLayout,
 ) !void {
+    _ = self;
     if (out_layout == c.VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR) {
         return;
     }
@@ -314,7 +316,7 @@ fn endTransition(
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &image_barrier,
     });
-    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.context.device)(cmd, &dependency);
+    c.vkCmdPipelineBarrier2KHR.?(cmd, &dependency);
 }
 
 /// Vertex layout for Nuklear

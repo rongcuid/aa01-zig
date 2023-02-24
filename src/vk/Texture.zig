@@ -70,7 +70,7 @@ pub fn create(
 }
 pub fn destroy(self: *@This()) void {
     for (self.views.items) |v| {
-        c.vkDestroyImageView(self.device, v, null);
+        c.vkDestroyImageView.?(self.device, v, null);
     }
     self.views.deinit();
     c.vmaDestroyImage(self.vma, self.image, self.alloc);
@@ -102,7 +102,7 @@ pub fn createDefaultView(self: *@This()) !c.VkImageView {
         },
     };
     vk.check(
-        c.vkCreateImageView(self.device, &ci, null, &view),
+        c.vkCreateImageView.?(self.device, &ci, null, &view),
         "Failed to create image view",
     );
     try self.views.append(view);
