@@ -31,7 +31,7 @@ pub fn init(
         vk.ShaderManager.ShaderKind.fragment,
     );
     // Rendering
-    const color: c.VkFormat = c.VK_FORMAT_B8G8R8A8_UNORM;
+    const color: c.VkFormat = c.VK_FORMAT_B8G8R8A8_SRGB;
     const renderingCI = zeroInit(c.VkPipelineRenderingCreateInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
         .colorAttachmentCount = 1,

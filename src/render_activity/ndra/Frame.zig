@@ -77,6 +77,7 @@ pub fn init(allocator: std.mem.Allocator, context: *VulkanContext) !@This() {
 }
 
 pub fn deinit(self: *@This()) void {
+    vk.check(c.vkDeviceWaitIdle(self.context.device), "Failed to wait device idle");
     c.nk_buffer_free(&self.verts);
     c.nk_buffer_free(&self.idx);
     self.vertsBuffer.deinit();
