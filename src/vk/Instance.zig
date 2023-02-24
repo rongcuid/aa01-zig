@@ -12,9 +12,9 @@ vkInstance: c.VkInstance,
 /// Owns
 vkDebugMessenger: c.VkDebugUtilsMessengerEXT,
 
-/// Creates a Vulkan instance. Enables all validation and all messages.
+/// Creates a Vulkan instance. Enables portability enumeration, all validation, and all messages.
 ///
-///Currently requires a SDL2 window due to SDL API.
+/// Currently requires a SDL2 window due to SDL API.
 /// With SDL greater than 2.26.2, `window` can be NULL. Therefore, this argument will be deprecated.
 pub fn create(alloc: std.mem.Allocator, window: *c.SDL_Window) !*@This() {
     var n_exts: c_uint = undefined;
@@ -26,11 +26,7 @@ pub fn create(alloc: std.mem.Allocator, window: *c.SDL_Window) !*@This() {
     var actual_exts = try std.BoundedArray(?[*:0]const u8, 16).init(0);
     try actual_exts.appendSlice(extensions[0..n_exts]);
     try actual_exts.append(c.VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-    var portability = try checkPortability();
-    if (portability) {
-        std.log.info("Vulkan requires portability subset", .{});
-        try actual_exts.append(c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-    }
+    try actual_exts.append(c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
     // TODO: check if validation layer is available
     var layers = try std.BoundedArray([*:0]const u8, 16).init(0);
     try layers.append("VK_LAYER_KHRONOS_validation");
@@ -64,9 +60,7 @@ pub fn create(alloc: std.mem.Allocator, window: *c.SDL_Window) !*@This() {
         .ppEnabledLayerNames = &layers.buffer,
         .flags = 0,
     });
-    if (portability) {
-        instanceCI.flags |= c.VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-    }
+    instanceCI.flags |= c.VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
     var instance: c.VkInstance = undefined;
     vk.check(
         c.vkCreateInstance(&instanceCI, null, &instance),
@@ -84,29 +78,6 @@ pub fn create(alloc: std.mem.Allocator, window: *c.SDL_Window) !*@This() {
         .vkDebugMessenger = debugMessenger,
     };
     return p;
-}
-
-/// Checks whether portability subset needs to be enabled
-pub fn checkPortability() !bool {
-    var count: u32 = undefined;
-    vk.check(
-        c.vkEnumerateInstanceExtensionProperties(null, &count, null),
-        "Failed to enumerate number of instance extensions",
-    );
-    var exts = try std.BoundedArray(c.VkExtensionProperties, 256).init(count);
-    vk.check(
-        c.vkEnumerateInstanceExtensionProperties(null, &count, &exts.buffer),
-        "Failed to enumerate instance extensions",
-    );
-    for (exts.buffer) |prop| {
-        if (std.cstr.cmp(
-            @ptrCast([*:0]const u8, &prop.extensionName),
-            c.VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
-        ) == 0) {
-            return true;
-        }
-    }
-    return false;
 }
 
 pub fn destroy(self: *@This()) void {

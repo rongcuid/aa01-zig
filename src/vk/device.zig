@@ -9,7 +9,6 @@ pub fn create_default_graphics(
     phys: c.VkPhysicalDevice,
     graphicsQueueFamilyIndex: u32,
 ) !c.VkDevice {
-    const portability = try vk.Instance.checkPortability();
     const priority: f32 = 1.0;
     const queueCI = zeroInit(c.VkDeviceQueueCreateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -22,9 +21,7 @@ pub fn create_default_graphics(
     try extensions.append(c.VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     try extensions.append(c.VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
     try extensions.append(c.VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
-    if (portability) {
         try extensions.append("VK_KHR_portability_subset");
-    }
     const layers = [_][*:0]const u8{
         "VK_LAYER_KHRONOS_validation",
         "VK_LAYER_KHRONOS_synchronization2",
