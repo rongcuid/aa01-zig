@@ -5,7 +5,7 @@ const c = @import("../c.zig");
 const vk = @import("../vk.zig");
 const zeroInit = std.mem.zeroInit;
 
-const Pipeline = @import("nk/NuklearPipeline.zig");
+const Pipeline = @import("nk_debug/Pipeline.zig");
 
 const MAX_VERTS = 1024;
 const MAX_INDEX = 1024;
