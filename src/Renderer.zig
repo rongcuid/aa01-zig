@@ -10,11 +10,13 @@ const NuklearDebugRenderActivity = @import("render_activity/NuklearDebugRenderAc
 var alloc = std.heap.c_allocator;
 
 const Self = @This();
+const NDRAFrameData = NuklearDebugRenderActivity.FrameData;
+const NDRAFrameList = std.ArrayList(NDRAFrameData);
 
 window: *c.SDL_Window,
 context: *VulkanContext,
 ndra: NuklearDebugRenderActivity,
-ndra_frame: NuklearDebugRenderActivity.FrameData,
+ndra_frames: NDRAFrameList,
 zig_texture: *vk.Texture,
 
 pub fn init() !Self {
@@ -33,19 +35,25 @@ pub fn init() !Self {
     );
     // Debug background
     var ndra = try NuklearDebugRenderActivity.init(context);
-    const ndra_frame = try NuklearDebugRenderActivity.FrameData.init(std.heap.c_allocator, context);
+    var ndra_frames = try NDRAFrameList.initCapacity(std.heap.c_allocator, context.swapchain.total_frames);
+    for (0..context.swapchain.total_frames) |_| {
+        ndra_frames.appendAssumeCapacity(try NDRAFrameData.init(alloc, context));
+    }
 
     // Return
     return Self{
         .window = window,
         .context = context,
         .ndra = ndra,
-        .ndra_frame = ndra_frame,
+        .ndra_frames = ndra_frames,
         .zig_texture = zig_texture,
     };
 }
 pub fn deinit(self: *Self) void {
-    self.ndra_frame.deinit();
+    for (self.ndra_frames.items) |*f| {
+        f.deinit();
+    }
+    self.ndra_frames.deinit();
     self.ndra.deinit();
     self.context.destroy();
     c.SDL_DestroyWindow(self.window);
@@ -55,6 +63,7 @@ pub fn deinit(self: *Self) void {
 pub fn render(self: *Self) !void {
     // Acquire swapchain image
     const acquired = try self.context.swapchain.acquire();
+    const ndra_frame = &self.ndra_frames.items[acquired.number];
     // Prepare structures
     try self.beginRender(&acquired);
     var cmd: c.VkCommandBuffer = undefined;
@@ -75,7 +84,7 @@ pub fn render(self: *Self) !void {
     // Run renderers
     // A test window
     self.drawTestWindow();
-    try self.ndra.render(&self.ndra_frame, cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
+    try self.ndra.render(ndra_frame, cmd, acquired.image, acquired.view, c.VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, area);
     // End
     try end_cmd(cmd);
     // Submit and present

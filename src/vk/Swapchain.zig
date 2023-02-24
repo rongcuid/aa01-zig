@@ -19,6 +19,7 @@ vkDevice: c.VkDevice,
 
 extent: c.VkExtent2D,
 
+total_frames: u32,
 current_frame: u32,
 images: std.ArrayList(c.VkImage),
 views: std.ArrayList(c.VkImageView),
@@ -29,6 +30,7 @@ pools: std.ArrayList(c.VkCommandPool),
 
 const Self = @This();
 pub const Frame = struct {
+    number: u32,
     resize: bool,
     image: c.VkImage,
     view: c.VkImageView,
@@ -95,6 +97,7 @@ pub fn init(
         .vkSurface = surface,
         .vkSwapchain = swapchain,
         .extent = extent,
+        .total_frames = imageCount,
         .current_frame = 0,
         .images = images,
         .views = views,
@@ -281,7 +284,8 @@ pub fn acquire(self: *@This()) !Frame {
         else => @panic("Failed to acquire swapchain image"),
     }
     self.current_frame = frame;
-    return Frame {
+    return Frame{
+        .number = frame,
         .resize = resize,
         .image = self.images.items[frame],
         .view = self.views.items[frame],
@@ -312,4 +316,3 @@ pub fn present(self: *@This(), queue: c.VkQueue) !bool {
     self.current_frame = (self.current_frame + 1) % @intCast(u32, self.images.items.len);
     return resize;
 }
-
