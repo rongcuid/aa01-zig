@@ -14,15 +14,16 @@ const MAX_TEXTURES = 128;
 
 allocator: std.mem.Allocator,
 context: *VulkanContext,
-/// Owns
+/// Nuklear vertex buffer, maps `vertsBuffer`
 verts: c.nk_buffer,
+/// Mapped vertex buffer
 vertsBuffer: vk.Buffer,
-/// Owns
+/// Nuklear index buffer, maps `idxBuffer`
 idx: c.nk_buffer,
+/// Mapped index buffer
 idxBuffer: vk.Buffer,
-// Owns.
 descriptor_pool: c.VkDescriptorPool,
-// Owns. Clears every Frame
+/// Cached texture descriptor sets
 descriptor_sets: DescriptorSetMap,
 
 const DescriptorSetMap = std.AutoHashMap(c.VkImageView, c.VkDescriptorSet);
