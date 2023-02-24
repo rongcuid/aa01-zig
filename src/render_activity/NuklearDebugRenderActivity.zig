@@ -7,7 +7,7 @@ const zeroInit = std.mem.zeroInit;
 
 const VulkanContext = @import("../VulkanContext.zig");
 
-pub const Frame = @import("ndra/Frame.zig");
+pub const FrameData = @import("ndra/FrameData.zig");
 const Pipeline = @import("ndra/Pipeline.zig");
 
 context: *VulkanContext,
@@ -121,7 +121,7 @@ pub fn deinit(self: *@This()) void {
 
 pub fn render(
     self: *@This(),
-    frame: *Frame,
+    frame: *FrameData,
     cmd: c.VkCommandBuffer,
     out_image: c.VkImage,
     out_view: c.VkImageView,
@@ -184,7 +184,7 @@ fn beginTransition(
 
 fn drawNuklear(
     self: *@This(),
-    frame: *Frame,
+    frame: *FrameData,
     cmd: c.VkCommandBuffer,
 ) !void {
     // TODO: clear descriptor pool
@@ -248,7 +248,7 @@ fn setDynamicState(
 /// Binds a texture to this renderer
 fn getDescriptorSet(
     self: *@This(),
-    frame: *Frame,
+    frame: *FrameData,
     view: c.VkImageView,
 ) !c.VkDescriptorSet {
     if (frame.descriptor_sets.get(view)) |ds| {

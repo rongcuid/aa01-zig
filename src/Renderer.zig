@@ -14,7 +14,7 @@ const Self = @This();
 window: *c.SDL_Window,
 context: *VulkanContext,
 ndra: NuklearDebugRenderActivity,
-ndra_frame: NuklearDebugRenderActivity.Frame,
+ndra_frame: NuklearDebugRenderActivity.FrameData,
 zig_texture: *vk.Texture,
 
 pub fn init() !Self {
@@ -33,7 +33,7 @@ pub fn init() !Self {
     );
     // Debug background
     var ndra = try NuklearDebugRenderActivity.init(context);
-    const ndra_frame = try NuklearDebugRenderActivity.Frame.init(std.heap.c_allocator, context);
+    const ndra_frame = try NuklearDebugRenderActivity.FrameData.init(std.heap.c_allocator, context);
 
     // Return
     return Self{
