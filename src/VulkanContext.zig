@@ -53,34 +53,11 @@ pub fn create(alloc: Allocator, window: *c.SDL_Window) !*@This() {
         "Failed to create pipeline cache",
     );
     // VMA
-    const vkFuncs = c.VmaVulkanFunctions{
+    const vkFuncs = zeroInit(c.VmaVulkanFunctions, .{
         .vkGetInstanceProcAddr = c.vkGetInstanceProcAddr.?,
         .vkGetDeviceProcAddr = c.vkGetDeviceProcAddr.?,
-        .vkGetPhysicalDeviceProperties = c.vkGetPhysicalDeviceProperties.?,
-        .vkGetPhysicalDeviceMemoryProperties = c.vkGetPhysicalDeviceMemoryProperties.?,
-        .vkAllocateMemory = c.vkAllocateMemory.?,
-        .vkFreeMemory = c.vkFreeMemory.?,
-        .vkMapMemory = c.vkMapMemory.?,
-        .vkUnmapMemory = c.vkUnmapMemory.?,
-        .vkFlushMappedMemoryRanges = c.vkFlushMappedMemoryRanges.?,
-        .vkInvalidateMappedMemoryRanges = c.vkInvalidateMappedMemoryRanges.?,
-        .vkBindBufferMemory = c.vkBindBufferMemory.?,
-        .vkBindImageMemory = c.vkBindImageMemory.?,
-        .vkGetBufferMemoryRequirements = c.vkGetBufferMemoryRequirements.?,
-        .vkGetImageMemoryRequirements = c.vkGetImageMemoryRequirements.?,
-        .vkCreateBuffer = c.vkCreateBuffer.?,
-        .vkDestroyBuffer = c.vkDestroyBuffer.?,
-        .vkCreateImage = c.vkCreateImage.?,
-        .vkDestroyImage = c.vkDestroyImage.?,
-        .vkCmdCopyBuffer = c.vkCmdCopyBuffer.?,
-        .vkGetBufferMemoryRequirements2KHR = c.vkGetBufferMemoryRequirements2.?,
-        .vkGetImageMemoryRequirements2KHR = c.vkGetImageMemoryRequirements2.?,
-        .vkBindBufferMemory2KHR = c.vkBindBufferMemory2.?,
-        .vkBindImageMemory2KHR = c.vkBindImageMemory2.?,
-        .vkGetPhysicalDeviceMemoryProperties2KHR = c.vkGetPhysicalDeviceMemoryProperties2.?,
-        .vkGetDeviceBufferMemoryRequirements = null,
-        .vkGetDeviceImageMemoryRequirements = null,
-    };
+    });
+
     const vmaCI = zeroInit(c.VmaAllocatorCreateInfo, .{
         .physicalDevice = physDevice,
         .device = device,
