@@ -114,7 +114,7 @@ pub fn destroy(self: *@This()) void {
     self.pipeline_cache = undefined;
     c.vkDestroyDevice(self.device, null);
     self.instance.destroy();
-    self.allocator.free(self);
+    self.allocator.destroy(self);
 }
 
 ////// Queue family

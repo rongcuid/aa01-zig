@@ -31,13 +31,13 @@ pub fn init(allocator: std.mem.Allocator, context: *VulkanContext) !@This() {
     // Vert and index buffer on device
     const vertSize = MAX_VERTS * @sizeOf(Pipeline.Vertex);
     const vertsBuffer = try vk.Buffer.initExclusiveSequentialMapped(
-        context.*.vma,
+        context.vma,
         vertSize,
         c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
     );
     const idxSize = MAX_INDEX * @sizeOf(c_short);
     const idxBuffer = try vk.Buffer.initExclusiveSequentialMapped(
-        context.*.vma,
+        context.vma,
         idxSize,
         c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
     );
@@ -60,7 +60,7 @@ pub fn init(allocator: std.mem.Allocator, context: *VulkanContext) !@This() {
         .pPoolSizes = &poolSizes,
     });
     vk.check(
-        c.vkCreateDescriptorPool(context.*.device, &poolCI, null, &descriptor_pool),
+        c.vkCreateDescriptorPool(context.device, &poolCI, null, &descriptor_pool),
         "Failed to create descriptor pool",
     );
     const descriptor_sets = DescriptorSetMap.init(allocator);
@@ -82,5 +82,5 @@ pub fn deinit(self: *@This()) void {
     self.vertsBuffer.deinit();
     self.idxBuffer.deinit();
     self.descriptor_sets.deinit();
-    c.vkDestroyDescriptorPool(self.context.*.device, self.descriptor_pool, null);
+    c.vkDestroyDescriptorPool(self.context.device, self.descriptor_pool, null);
 }

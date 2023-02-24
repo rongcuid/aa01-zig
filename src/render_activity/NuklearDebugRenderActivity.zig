@@ -110,11 +110,11 @@ pub fn init(
 }
 
 pub fn deinit(self: *@This()) void {
-    vk.check(c.vkDeviceWaitIdle(self.context.*.device), "Failed to wait device idle");
+    vk.check(c.vkDeviceWaitIdle(self.context.device), "Failed to wait device idle");
     c.nk_buffer_free(&self.cmds);
     c.nk_font_atlas_clear(&self.atlas);
     c.nk_free(&self.nk_context);
-    c.vkDestroySampler(self.context.*.device, self.sampler, null);
+    c.vkDestroySampler(self.context.device, self.sampler, null);
     self.atlas_texture.destroy();
     self.pipeline.deinit();
 }
@@ -142,11 +142,11 @@ pub fn render(
         .pColorAttachments = &color_att_info,
     });
     try self.beginTransition(cmd, out_image);
-    vk.PfnD(.vkCmdBeginRenderingKHR).on(self.context.*.device)(cmd, &rendering_info);
+    vk.PfnD(.vkCmdBeginRenderingKHR).on(self.context.device)(cmd, &rendering_info);
     c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.pipeline);
     try setDynamicState(cmd, out_area);
     try self.drawNuklear(frame, cmd);
-    vk.PfnD(.vkCmdEndRenderingKHR).on(self.context.*.device)(cmd);
+    vk.PfnD(.vkCmdEndRenderingKHR).on(self.context.device)(cmd);
     try self.endTransition(cmd, out_image, out_layout);
 }
 
@@ -176,7 +176,7 @@ fn beginTransition(
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &image_barrier,
     });
-    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.context.*.device)(
+    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.context.device)(
         cmd,
         &dependency,
     );
@@ -189,16 +189,16 @@ fn drawNuklear(
 ) !void {
     // TODO: clear descriptor pool
     c.nk_buffer_clear(&self.cmds);
-    c.nk_buffer_clear(&frame.*.verts);
-    c.nk_buffer_clear(&frame.*.idx);
+    c.nk_buffer_clear(&frame.verts);
+    c.nk_buffer_clear(&frame.idx);
     // Convert draw commands
-    if (c.nk_convert(&self.nk_context, &self.cmds, &frame.*.verts, &frame.*.idx, &self.convert_cfg) != c.NK_CONVERT_SUCCESS) {
+    if (c.nk_convert(&self.nk_context, &self.cmds, &frame.verts, &frame.idx, &self.convert_cfg) != c.NK_CONVERT_SUCCESS) {
         @panic("Failed to convert nk_commands");
     }
     // Bind vertex and index buffers
     const vOffsets: u64 = 0;
-    c.vkCmdBindVertexBuffers(cmd, 0, 1, &frame.*.vertsBuffer.buffer, &vOffsets);
-    c.vkCmdBindIndexBuffer(cmd, frame.*.idxBuffer.buffer, 0, c.VK_INDEX_TYPE_UINT16);
+    c.vkCmdBindVertexBuffers(cmd, 0, 1, &frame.vertsBuffer.buffer, &vOffsets);
+    c.vkCmdBindIndexBuffer(cmd, frame.idxBuffer.buffer, 0, c.VK_INDEX_TYPE_UINT16);
     // Draw commands
     var nk_cmd = c.nk__draw_begin(&self.nk_context, &self.cmds);
     var index_offset: u32 = 0;
@@ -251,19 +251,19 @@ fn getDescriptorSet(
     frame: *Frame,
     view: c.VkImageView,
 ) !c.VkDescriptorSet {
-    if (frame.*.descriptor_sets.get(view)) |ds| {
+    if (frame.descriptor_sets.get(view)) |ds| {
         return ds;
     }
     // Not cached, allocate new descriptor set
     var ds: c.VkDescriptorSet = undefined;
     const dsAI = zeroInit(c.VkDescriptorSetAllocateInfo, .{
         .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-        .descriptorPool = frame.*.descriptor_pool,
+        .descriptorPool = frame.descriptor_pool,
         .descriptorSetCount = 1,
         .pSetLayouts = &self.pipeline.descriptor_set_layouts[0],
     });
     vk.check(
-        c.vkAllocateDescriptorSets(self.context.*.device, &dsAI, &ds),
+        c.vkAllocateDescriptorSets(self.context.device, &dsAI, &ds),
         "Failed to allocate descriptor set",
     );
     // Write image to descriptor
@@ -280,8 +280,8 @@ fn getDescriptorSet(
         .descriptorType = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
         .pImageInfo = &imageInfo,
     });
-    c.vkUpdateDescriptorSets(self.context.*.device, 1, &write, 0, null);
-    try frame.*.descriptor_sets.put(view, ds);
+    c.vkUpdateDescriptorSets(self.context.device, 1, &write, 0, null);
+    try frame.descriptor_sets.put(view, ds);
     return ds;
 }
 
@@ -314,7 +314,7 @@ fn endTransition(
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &image_barrier,
     });
-    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.context.*.device)(cmd, &dependency);
+    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.context.device)(cmd, &dependency);
 }
 
 /// Vertex layout for Nuklear
