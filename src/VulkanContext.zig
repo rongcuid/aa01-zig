@@ -7,6 +7,7 @@ const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
 
 ////// Fields
+allocator: Allocator,
 /// Vulkan instance
 instance: *vk.Instance,
 physicalDevice: c.VkPhysicalDevice,
@@ -27,7 +28,7 @@ texture_manager: *vk.TextureManager,
 
 ////// Methods
 
-pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
+pub fn create(alloc: Allocator, window: *c.SDL_Window) !*@This() {
     const instance = try vk.Instance.create(alloc, window);
     // Enumerate and selct physical devices
     const physDevice = try instance.selectPhysicalDevice();
@@ -82,7 +83,9 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
     );
     const shader_manager = try vk.ShaderManager.create(alloc, device);
     const texture_manager = try vk.TextureManager.create(alloc, device, vma, queue, gqIndex, gqIndex);
-    return @This(){
+    var result = try alloc.create(@This());
+    result.* = @This(){
+        .allocator = alloc,
         .instance = instance,
         .physicalDevice = physDevice,
         .device = device,
@@ -95,8 +98,9 @@ pub fn init(alloc: Allocator, window: *c.SDL_Window) !@This() {
         .shader_manager = shader_manager,
         .texture_manager = texture_manager,
     };
+    return result;
 }
-pub fn deinit(self: *@This()) void {
+pub fn destroy(self: *@This()) void {
     std.log.debug("VulkanContext.deinit()", .{});
     vk.check(c.vkDeviceWaitIdle(self.device), "Failed to wait device idle");
     self.shader_manager.destroy();
@@ -110,6 +114,7 @@ pub fn deinit(self: *@This()) void {
     self.pipeline_cache = undefined;
     c.vkDestroyDevice(self.device, null);
     self.instance.destroy();
+    self.allocator.free(self);
 }
 
 ////// Queue family

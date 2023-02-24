@@ -5,17 +5,14 @@ const c = @import("../c.zig");
 const vk = @import("../vk.zig");
 const zeroInit = std.mem.zeroInit;
 
+const VulkanContext = @import("../VulkanContext.zig");
+
+const Frame = @import("ndra/Frame.zig");
 const Pipeline = @import("ndra/Pipeline.zig");
 
-const MAX_VERTS = 1024;
-const MAX_INDEX = 1024;
-const MAX_TEXTURES = 128;
-
-allocator: std.mem.Allocator,
-device: c.VkDevice,
-vma: c.VmaAllocator,
+context: *VulkanContext,
 /// Owns
-context: c.nk_context,
+nk_context: c.nk_context,
 /// Owns
 atlas: c.nk_font_atlas,
 /// Owns
@@ -30,27 +27,16 @@ tex_null: c.nk_draw_null_texture,
 /// Owns
 cmds: c.nk_buffer,
 /// Owns
-verts: c.nk_buffer,
-vertsBuffer: vk.Buffer,
-/// Owns
-idx: c.nk_buffer,
-idxBuffer: vk.Buffer,
-// Owns.
-descriptor_pool: c.VkDescriptorPool,
-// Owns. Clears every Frame
-descriptor_sets: DescriptorSetMap,
-// Owns.
+frames: Frames,
+
+/// Owns.
 sampler: c.VkSampler,
 
-const DescriptorSetMap = std.AutoHashMap(c.VkImageView, c.VkDescriptorSet);
+const Frames = std.ArrayList(Frame);
 
 pub fn init(
     allocator: std.mem.Allocator,
-    device: c.VkDevice,
-    vma: c.VmaAllocator,
-    cache: c.VkPipelineCache,
-    texture_manager: *vk.TextureManager,
-    shader_manager: *vk.ShaderManager,
+    context: *VulkanContext,
 ) !@This() {
     var img_width: c_int = 1024;
     var img_height: c_int = 1024;
@@ -63,7 +49,7 @@ pub fn init(
         c.nk_font_atlas_bake(&atlas, &img_width, &img_height, c.NK_FONT_ATLAS_RGBA32),
     );
     // Create the texture on device
-    const atlas_texture = try texture_manager.loadPixels(
+    const atlas_texture = try context.texture_manager.loadPixels(
         img[0..@intCast(usize, img_width * img_height * 4)],
         @intCast(u32, img_width),
         @intCast(u32, img_height),
@@ -75,8 +61,8 @@ pub fn init(
     var tex_null: c.nk_draw_null_texture = undefined;
     c.nk_font_atlas_end(&atlas, c.nk_handle_ptr(atlas_view), &tex_null);
     // Create context
-    var context: c.nk_context = undefined;
-    if (c.nk_init_default(&context, &font.*.handle) == 0) {
+    var nk_context: c.nk_context = undefined;
+    if (c.nk_init_default(&nk_context, &font.*.handle) == 0) {
         @panic("Failed to initialize Nuklear");
     }
     const convert_cfg = c.nk_convert_config{
@@ -94,37 +80,12 @@ pub fn init(
     // Nuklear command buffer on CPU
     var cmds: c.nk_buffer = undefined;
     c.nk_buffer_init_default(&cmds);
-    // Vert and index buffer on device
-    const vertSize = MAX_VERTS * @sizeOf(Pipeline.Vertex);
-    const vertsBuffer = try vk.Buffer.initExclusiveSequentialMapped(vma, vertSize, c.VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    const idxSize = MAX_INDEX * @sizeOf(c_short);
-    const idxBuffer = try vk.Buffer.initExclusiveSequentialMapped(vma, idxSize, c.VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-    var verts: c.nk_buffer = undefined;
-    c.nk_buffer_init_fixed(&verts, vertsBuffer.allocInfo.pMappedData, vertSize);
-    var idx: c.nk_buffer = undefined;
-    c.nk_buffer_init_fixed(&idx, idxBuffer.allocInfo.pMappedData, idxSize);
 
     // Build pipeline
-    const pipeline = try Pipeline.init(device, cache, shader_manager);
-    // Descriptors
-    var descriptor_pool: c.VkDescriptorPool = undefined;
-    const poolSizes = [_]c.VkDescriptorPoolSize{
-        .{
-            .type = c.VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .descriptorCount = MAX_TEXTURES,
-        },
-    };
-    const poolCI = zeroInit(c.VkDescriptorPoolCreateInfo, .{
-        .sType = c.VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-        .maxSets = 1,
-        .poolSizeCount = @intCast(u32, poolSizes.len),
-        .pPoolSizes = &poolSizes,
-    });
-    vk.check(
-        c.vkCreateDescriptorPool(device, &poolCI, null, &descriptor_pool),
-        "Failed to create descriptor pool",
-    );
-    const descriptor_sets = DescriptorSetMap.init(allocator);
+    const pipeline = try Pipeline.init(context.device, context.pipeline_cache, context.shader_manager);
+    // Frame list
+    const frames = Frames.init(allocator);
+
     // Sampler
     var sampler: c.VkSampler = undefined;
     const samplerCI = zeroInit(c.VkSamplerCreateInfo, .{
@@ -139,14 +100,12 @@ pub fn init(
         .maxLod = 1,
     });
     vk.check(
-        c.vkCreateSampler(device, &samplerCI, null, &sampler),
+        c.vkCreateSampler(context.device, &samplerCI, null, &sampler),
         "Failed to create sampler",
     );
     return @This(){
-        .allocator = allocator,
-        .device = device,
-        .vma = vma,
         .context = context,
+        .nk_context = nk_context,
         .atlas = atlas,
         .atlas_texture = atlas_texture,
         .atlas_view = atlas_view,
@@ -154,12 +113,7 @@ pub fn init(
         .convert_cfg = convert_cfg,
         .tex_null = tex_null,
         .cmds = cmds,
-        .verts = verts,
-        .vertsBuffer = vertsBuffer,
-        .idx = idx,
-        .idxBuffer = idxBuffer,
-        .descriptor_pool = descriptor_pool,
-        .descriptor_sets = descriptor_sets,
+        .frames = frames,
         .sampler = sampler,
     };
 }
@@ -202,7 +156,7 @@ pub fn render(
         .pColorAttachments = &color_att_info,
     });
     try self.beginTransition(cmd, out_image);
-    vk.PfnD(.vkCmdBeginRenderingKHR).on(self.device)(cmd, &rendering_info);
+    vk.PfnD(.vkCmdBeginRenderingKHR).on(self.context.device)(cmd, &rendering_info);
     c.vkCmdBindPipeline(cmd, c.VK_PIPELINE_BIND_POINT_GRAPHICS, self.pipeline.pipeline);
     try setDynamicState(cmd, out_area);
     try self.drawNuklear(cmd);
@@ -236,7 +190,7 @@ fn beginTransition(
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers = &image_barrier,
     });
-    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.device)(
+    vk.PfnD(.vkCmdPipelineBarrier2KHR).on(self.context.device)(
         cmd,
         &dependency,
     );

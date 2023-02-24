@@ -12,7 +12,7 @@ var alloc = std.heap.c_allocator;
 const Self = @This();
 
 window: *c.SDL_Window,
-context: VulkanContext,
+context: *VulkanContext,
 ndra: NuklearDebugRenderActivity,
 zig_texture: *vk.Texture,
 
@@ -22,7 +22,7 @@ pub fn init() !Self {
         c.SDL_Log("Unable to create window: %s", c.SDL_GetError());
         return error.SDLInitializationFailed;
     };
-    var context = try VulkanContext.init(std.heap.c_allocator, window);
+    var context = try VulkanContext.create(std.heap.c_allocator, window);
 
     // Zig logo
     const zig_texture = try context.texture_manager.loadFileCached(
@@ -33,11 +33,7 @@ pub fn init() !Self {
     // Debug background
     var ndra = try NuklearDebugRenderActivity.init(
         alloc,
-        context.device,
-        context.vma,
-        context.pipeline_cache,
-        context.texture_manager,
-        context.shader_manager,
+        context,
     );
 
     // Return
@@ -50,7 +46,7 @@ pub fn init() !Self {
 }
 pub fn deinit(self: *Self) void {
     self.ndra.deinit();
-    self.context.deinit();
+    self.context.destroy();
     c.SDL_DestroyWindow(self.window);
     self.window = undefined;
 }
@@ -166,8 +162,8 @@ fn drawTestWindow(self: *@This()) void {
             c.NK_WINDOW_MINIMIZABLE |
             c.NK_WINDOW_TITLE,
     )) {
-        c.nk_layout_row_static(&self.ndra.context, 30, 80, 1);
-        if (c.nk_button_label(&self.ndra.context, "button") == 1) {
+        c.nk_layout_row_static(&self.ndra.nk_context, 30, 80, 1);
+        if (c.nk_button_label(&self.ndra.nk_context, "button") == 1) {
             std.debug.print("button pressed\n", .{});
         }
     }
