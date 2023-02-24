@@ -134,7 +134,7 @@ fn createPipeline(
     };
     // Descriptor sets
     var setLayouts: [setLayoutCIs.len]c.VkDescriptorSetLayout = undefined;
-    for (setLayoutCIs) |ci, i| {
+    for (setLayoutCIs, 0..) |ci, i| {
         vk.check(
             c.vkCreateDescriptorSetLayout(device, &ci, null, &setLayouts[i]),
             "Failed to create descriptor set layout",

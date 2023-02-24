@@ -119,7 +119,7 @@ fn getGraphicsQueueFamilyIndex(phys: c.VkPhysicalDevice) !u32 {
     c.vkGetPhysicalDeviceQueueFamilyProperties(phys, &count, null);
     var props = try std.BoundedArray(c.VkQueueFamilyProperties, 16).init(count);
     c.vkGetPhysicalDeviceQueueFamilyProperties(phys, &count, &props.buffer);
-    for (props.buffer) |p, i| {
+    for (props.buffer, 0..) |p, i| {
         if (p.queueFlags & c.VK_QUEUE_GRAPHICS_BIT != 0) {
             return @intCast(u32, i);
         }
