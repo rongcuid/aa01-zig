@@ -51,6 +51,9 @@ A secret game
 * [x] Refactor command buffer passing to render activities
 * [x] Add vertex color to shader
 * [x] Hard code address transform
-* [ ] Hacks to force single-thread
+* [x] [.line-through]#Hacks to force single-thread#
 * [ ] Push constant to send transformation
 * [x] Render loop
+* [ ] Picking color format and make pipeline with it
+* [x] Multiple frames in flight
+* [ ] Secondary frame buffers

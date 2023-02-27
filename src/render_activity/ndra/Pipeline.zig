@@ -32,6 +32,7 @@ pub fn init(
     );
     // Rendering
     const color: c.VkFormat = c.VK_FORMAT_B8G8R8A8_SRGB;
+    // const color: c.VkFormat = c.VK_FORMAT_B8G8R8A8_UNORM;
     const renderingCI = zeroInit(c.VkPipelineRenderingCreateInfoKHR, .{
         .sType = c.VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
         .colorAttachmentCount = 1,

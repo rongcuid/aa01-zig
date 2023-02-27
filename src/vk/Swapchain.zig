@@ -75,7 +75,7 @@ pub fn init(
         c.vkGetSwapchainImagesKHR.?(device, swapchain, &imageCount, images.items.ptr),
         "Failed to get swapchain images",
     );
-    const formats = try getFormats(allocator, phys, surface);
+    // const formats = try getFormats(allocator, phys, surface);
     var views = try std.ArrayList(c.VkImageView).initCapacity(allocator, imageCount);
     var img_acq_semaphores = try std.ArrayList(c.VkSemaphore).initCapacity(allocator, imageCount);
     var render_semaphores = try std.ArrayList(c.VkSemaphore).initCapacity(allocator, imageCount);
@@ -85,7 +85,8 @@ pub fn init(
         views.appendAssumeCapacity(try createImageView(
             device,
             img,
-            formats.items[0].format,
+            c.VK_FORMAT_B8G8R8A8_SRGB,
+            // formats.items[0].format,
         ));
         img_acq_semaphores.appendAssumeCapacity(try createSemaphore(device));
         render_semaphores.appendAssumeCapacity(try createSemaphore(device));
@@ -157,21 +158,24 @@ fn createSwapchain(
     height: u32,
     oldSwapchain: c.VkSwapchainKHR,
 ) !c.VkSwapchainKHR {
+    _ = allocator;
     var capabilities: c.VkSurfaceCapabilitiesKHR = undefined;
     vk.check(
         c.vkGetPhysicalDeviceSurfaceCapabilitiesKHR.?(phys, surface, &capabilities),
         "Failed to get physical device capabilities",
     );
-    const formats = try getFormats(allocator, phys, surface);
-    defer formats.deinit();
+    // const formats = try getFormats(allocator, phys, surface);
+    // defer formats.deinit();
     const swapchainCI = c.VkSwapchainCreateInfoKHR{
         .sType = c.VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .pNext = null,
         .flags = 0,
         .surface = surface,
         .minImageCount = 3,
-        .imageFormat = formats.items[0].format,
-        .imageColorSpace = formats.items[0].colorSpace,
+        .imageFormat = c.VK_FORMAT_B8G8R8A8_SRGB,
+        .imageColorSpace = c.VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+        // .imageFormat = formats.items[0].format,
+        // .imageColorSpace = formats.items[0].colorSpace,
         // TODO: clamp this
         .imageExtent = c.VkExtent2D{
             .width = width,
